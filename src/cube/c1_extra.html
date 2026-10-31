@@ -1,0 +1,104 @@
+<style>
+/* Cube workspace: lens bar (collapse + align) on top, filters below, canvas left, agent rail right */
+.top{align-items:flex-start}
+.lens{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;width:100%}
+.cube{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;min-width:0}
+.cb{display:flex;align-items:center;gap:9px;text-align:left;padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:var(--soft);color:var(--ink);cursor:pointer;font:inherit;min-width:0}
+.cb svg{flex:none;width:32px;height:32px;color:var(--muted)}
+.cb b{display:block;font:600 13px/1.15 var(--f-body)}
+.cb small{display:block;font-size:11px;color:var(--muted);line-height:1.25}
+.cb.on{border-color:var(--ink);background:var(--panel);box-shadow:inset 0 0 0 1px var(--ink)}
+.cb.on svg{color:var(--accent)}
+.anchorinfo{font:500 12px var(--f-mono);color:var(--muted);padding-bottom:6px}
+.viewport{height:clamp(480px,calc(100vh - 300px),920px)}
+.stage{grid-template-columns:minmax(0,1fr) 380px}
+.side{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;gap:0;max-height:none;height:clamp(480px,calc(100vh - 300px),920px)}
+.tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
+.tabs button{flex:1;font:600 13px var(--f-body);padding:10px 8px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);cursor:pointer}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.tabs span{font:500 11px var(--f-mono);color:var(--crit)}
+.pane{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 14px;overflow:auto}
+.pane.card{border:0;border-radius:0;display:block}
+.pane h2{font-family:var(--f-disp);font-weight:700;font-size:18px;letter-spacing:.02em;margin:0 0 8px;display:flex;justify-content:space-between;align-items:baseline}
+.pane h2 span{font:500 12px var(--f-mono);color:var(--muted)}
+.chat{flex:1;min-height:120px;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-right:2px}
+.msg{font-size:13.5px;line-height:1.5;overflow-wrap:anywhere;min-width:0}
+.msg p{margin:0 0 6px}.msg p:last-child{margin:0}
+.msg ul{margin:4px 0 6px;padding-left:18px}
+.msg.u{align-self:flex-end;background:var(--ink);color:var(--bg);padding:7px 11px;border-radius:12px 12px 3px 12px;max-width:88%}
+.msg.a{align-self:stretch}
+.msg.a .who{font:600 10.5px var(--f-body);text-transform:uppercase;letter-spacing:.09em;color:var(--accent);margin-bottom:3px}
+.msg.err{color:var(--crit)}
+.step{font:11px/1.45 var(--f-mono);color:var(--muted);border-left:2px solid var(--c-lb);padding:1px 0 1px 8px;margin:2px 0}
+.sugs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 8px;flex:none}
+.sug{font:500 12px/1.3 var(--f-body);padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--soft);color:var(--ink);cursor:pointer;text-align:left}
+.sug:hover{border-color:var(--ink)}
+#askF{flex:none}
+#ask{width:100%;box-sizing:border-box;font:14px/1.4 var(--f-body);color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:8px 10px;resize:vertical;min-height:46px}
+.arow{display:flex;gap:6px;justify-content:flex-end;align-items:center;margin-top:6px}
+.arow label{margin-right:auto;font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.primary{font:600 13px var(--f-body);background:var(--ink);color:var(--bg);border:0;border-radius:6px;padding:8px 16px;cursor:pointer}
+.primary:disabled{opacity:.5;cursor:default}
+.agentnote{font-size:11.5px;color:var(--muted);margin:6px 0 0;flex:none}
+#pSig #sigList{flex:1}
+@media (max-width:900px){.stage{grid-template-columns:minmax(0,1fr)}.viewport{height:540px}.side{height:600px}}
+@media (max-width:760px){.cube{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+<div class="app">
+  <header class="top">
+    <div>
+      <h1>KN189 Event Cube</h1>
+      <p class="sub">Patient × domain × time from a hypothetical KEYNOTE-189-style raw dataset: 60 patients, pembrolizumab or placebo + pemetrexed + platinum. Collapse any one dimension, or re-align time on an event. <b>Synthetic, not real trial data.</b></p>
+    </div>
+  </header>
+  <section class="controls" aria-label="Cube">
+    <div class="lens">
+      <div class="grp" style="flex:1 1 600px;min-width:0"><span class="lbl">Cube: collapse one dimension</span><div class="cube" id="cube" role="radiogroup" aria-label="Cube view"></div></div>
+      <div class="grp"><label class="lbl" for="fAlign">Align time on</label>
+        <select id="fAlign"><option value="rand">Randomization (Day 1)</option><option value="g3">First grade ≥3 AE</option><option value="ir">First immune-related AE</option><option value="term">First AE of a chosen term</option><option value="cpr">Confirmed partial response</option><option value="pd">Progression</option><option value="xo">Crossover</option></select></div>
+      <div class="grp" id="termBox" hidden><label class="lbl" for="fTerm">AE of interest</label><select id="fTerm"></select></div>
+      <div class="anchorinfo" id="anchorInfo"></div>
+    </div>
+  </section>
+  <section class="controls" aria-label="Filters">
+    <div class="grp"><span class="lbl">Domain layers</span><div class="chips" id="layerChips"></div></div>
+    <div class="grp"><label class="lbl" for="fArm">Arm</label>
+      <select id="fArm"><option value="all">Both arms</option><option value="P">Pembro + chemo</option><option value="B">Placebo + chemo</option></select></div>
+    <div class="grp"><label class="lbl" for="fTps">PD-L1 TPS</label>
+      <select id="fTps"><option value="all">All</option><option value="0">&lt;1%</option><option value="1">1–49%</option><option value="2">≥50%</option></select></div>
+    <div class="grp"><label class="lbl" for="fShow">Subset</label>
+      <select id="fShow"><option value="all">All patients</option><option value="g3">Any grade ≥3 AE</option><option value="ir">Immune-related AE</option><option value="sig">Has a signal</option><option value="xo">Crossed over</option><option value="pd">Progressed</option><option value="pick" hidden>Selection</option></select></div>
+    <div class="grp"><label class="lbl" for="fSort">Sort by</label>
+      <select id="fSort"><option value="id">Patient ID</option><option value="pfs">Time to PD / censor</option><option value="trt">Time on treatment</option><option value="ae">Number of AEs</option><option value="alt">Peak ALT ×ULN</option><option value="tps">PD-L1 TPS</option><option value="shr">Best tumor shrinkage</option><option value="anc">Anchor day</option></select></div>
+    <div class="grp"><label class="lbl" for="fLab">Lab lens</label>
+      <select id="fLab"><option>ALT</option><option>AST</option><option>BILI</option><option>CREAT</option><option>TSH</option><option>ANC</option></select></div>
+  </section>
+  <main class="stage">
+    <div class="viewport" id="vp">
+      <canvas id="cv" aria-label="Event cube view"></canvas>
+      <div class="zoombar" id="zoombar"><button id="zOut" aria-label="Zoom out">−</button><span id="zLvl">Overview</span><button id="zIn" aria-label="Zoom in">+</button><button id="zFit">Fit</button></div>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+    <aside class="side">
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" class="on" data-t="pAgent" aria-selected="true">Agent</button>
+        <button type="button" role="tab" data-t="pcard" aria-selected="false">Patient</button>
+        <button type="button" role="tab" data-t="pSig" aria-selected="false">Signals <span id="sigN"></span></button>
+      </div>
+      <section class="pane" id="pAgent" role="tabpanel">
+        <div class="chat" id="chat" aria-live="polite"></div>
+        <div class="sugs" id="sugs"></div>
+        <form id="askF">
+          <textarea id="ask" rows="2" placeholder="Ask about the data, or say what to show…"></textarea>
+          <div class="arow"><label for="tier">Depth <select id="tier"><option value="quick">Fast</option><option value="default">Thorough</option></select></label>
+            <button type="button" class="btn" id="stop" hidden style="margin:0">Stop</button><button type="submit" class="primary" id="send">Ask</button></div>
+        </form>
+        <p class="agentnote" id="agentNote">The agent answers with your own Claude account and can change this view. Without it, simple view commands still work.</p>
+      </section>
+      <section class="pane card" id="pcard" role="tabpanel" hidden></section>
+      <section class="pane" id="pSig" role="tabpanel" hidden><ol id="sigList"></ol></section>
+    </aside>
+  </main>
+  <footer class="legend" id="legend"></footer>
+  <p class="hint" id="hint"></p>
+</div>

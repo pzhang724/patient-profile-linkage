@@ -1,0 +1,704 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}</style></head><body>
+<title>KN189 Patient Lanes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: instrument-panel workspace — controls strip, big timeline canvas, signals rail on the right */
+:root{
+  --bg:#eef1f3; --panel:#ffffff; --ink:#15202b; --muted:#566370; --line:#d3d9de; --grid:#e3e8ec; --soft:#f6f8f9;
+  --accent:#0d6b8a; --pbo:#8b97a3;
+  --c-ex:#1f7fa6; --c-ae:#cf442e; --c-lb:#7558c2; --c-tr:#2b8653; --c-cm:#b98110; --c-ds:#15202b;
+  --g1:#e9b44c; --g2:#e27f36; --g3:#cf442e; --g4:#931d2c; --g5:#3a0c15;
+  --ok:#2b8653; --warn:#b98110; --crit:#cf442e;
+  --f-disp:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0d1318; --panel:#141c23; --ink:#e3eaef; --muted:#93a2ae; --line:#26323c; --grid:#1b252e; --soft:#11181e;
+  --accent:#43aed0; --pbo:#6d7a86;
+  --c-ex:#4aaad2; --c-ae:#ef6b53; --c-lb:#a68df0; --c-tr:#52c17f; --c-cm:#e3ad3c; --c-ds:#e3eaef;
+  --g1:#e9c063; --g2:#ec9450; --g3:#ef6b53; --g4:#e0405a; --g5:#ff9fb0;
+  --ok:#52c17f; --warn:#e3ad3c; --crit:#ef6b53; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1318; --panel:#141c23; --ink:#e3eaef; --muted:#93a2ae; --line:#26323c; --grid:#1b252e; --soft:#11181e;
+  --accent:#43aed0; --pbo:#6d7a86;
+  --c-ex:#4aaad2; --c-ae:#ef6b53; --c-lb:#a68df0; --c-tr:#52c17f; --c-cm:#e3ad3c; --c-ds:#e3eaef;
+  --g1:#e9c063; --g2:#ec9450; --g3:#ef6b53; --g4:#e0405a; --g5:#ff9fb0;
+  --ok:#52c17f; --warn:#e3ad3c; --crit:#ef6b53; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+.app{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 18px;display:flex;flex-direction:column;gap:12px;max-width:1500px;margin:0 auto}
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--f-disp);font-weight:700;font-size:30px;letter-spacing:.01em;margin:0;line-height:1;text-wrap:balance}
+.sub{margin:4px 0 0;color:var(--muted);font-size:13px;max-width:70ch}
+.sub b{color:var(--crit);font-weight:600}
+.views{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.tab{font:600 13px/1 var(--f-body);padding:9px 14px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.tab.on{background:var(--ink);color:var(--bg)}
+.tab:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.controls{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.grp{display:flex;flex-direction:column;gap:4px;min-width:0}
+.lbl{font:600 10.5px/1 var(--f-body);text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+select{font:500 13px var(--f-body);color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:5px 8px;max-width:100%}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{display:inline-flex;align-items:center;gap:6px;font:600 12px/1 var(--f-mono);padding:6px 9px;border-radius:999px;border:1px solid var(--line);background:var(--soft);color:var(--muted);cursor:pointer}
+.chip i{width:9px;height:9px;border-radius:2px;background:var(--dc);opacity:.35}
+.chip.on{color:var(--ink);border-color:var(--dc)}
+.chip.on i{opacity:1}
+.switch{display:inline-flex;align-items:center;gap:8px;font:600 13px var(--f-body);cursor:pointer;padding-bottom:4px}
+.switch input{width:16px;height:16px;accent-color:var(--accent)}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:12px}
+.viewport{position:relative;height:clamp(460px,calc(100vh - 250px),900px);background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;touch-action:none;min-width:0}
+#cv{display:block;width:100%;height:100%;cursor:grab}
+#cv.drag{cursor:grabbing}
+#three{position:absolute;inset:0}
+#three canvas{display:block;width:100%;height:100%;cursor:grab}
+.zoombar{position:absolute;right:10px;bottom:10px;display:flex;align-items:center;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.zoombar button{font:600 15px/1 var(--f-body);min-width:30px;height:28px;border:0;border-radius:4px;background:transparent;color:var(--ink);cursor:pointer}
+.zoombar button:hover{background:var(--soft)}
+#zFit{font-size:12px}
+#zLvl{font:500 11px var(--f-mono);color:var(--muted);min-width:64px;text-align:center}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font:12px/1.4 var(--f-body);padding:6px 8px;border-radius:5px;max-width:260px;z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.tip b{font-family:var(--f-mono);font-weight:500}
+#lbl3d{position:absolute;inset:0;pointer-events:none}
+#lbl3d span{position:absolute;font:600 11px var(--f-mono);padding:2px 6px;border-radius:3px;background:var(--panel);border:1px solid var(--line);transform:translate(-100%,-50%);white-space:nowrap}
+.spread{position:absolute;left:10px;bottom:10px;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:600 12px var(--f-body)}
+.spread input{width:140px;accent-color:var(--accent)}
+.xrnote{position:absolute;right:10px;top:10px;max-width:300px;font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+.side{display:flex;flex-direction:column;gap:12px;min-width:0;max-height:clamp(460px,calc(100vh - 250px),900px)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:0}
+.card h2{font-family:var(--f-disp);font-weight:700;font-size:18px;letter-spacing:.02em;margin:0 0 8px;display:flex;justify-content:space-between;align-items:baseline}
+.card h2 span{font:500 12px var(--f-mono);color:var(--muted)}
+.sigcard{flex:1;display:flex;flex-direction:column;min-height:180px}
+#sigList{list-style:none;margin:0;padding:0;overflow:auto;display:flex;flex-direction:column;gap:6px;flex:1}
+#sigList li{display:grid;grid-template-columns:4px 1fr;gap:9px;padding:7px 8px;border-radius:5px;background:var(--soft);cursor:pointer;border:1px solid transparent}
+#sigList li:hover,#sigList li.on{border-color:var(--line)}
+#sigList li .sv{border-radius:2px}
+#sigList li .t{font:600 13px var(--f-body)}
+#sigList li .d{font-size:12px;color:var(--muted)}
+#sigList li .id{font:500 11px var(--f-mono);color:var(--muted)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13px;margin:0}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums}
+.pid{font:500 15px var(--f-mono);margin:0 0 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.arm{font:600 11px var(--f-body);padding:2px 7px;border-radius:999px;color:#fff}
+.empty{color:var(--muted);font-size:13px;margin:0}
+.evlist{margin:8px 0 0;padding:0;list-style:none;font-size:12px;display:flex;flex-direction:column;gap:2px;max-height:130px;overflow:auto}
+.evlist li{display:flex;gap:8px}
+.evlist .day{font-family:var(--f-mono);color:var(--muted);min-width:46px;text-align:right}
+.btn{font:600 12px var(--f-body);border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:5px;padding:6px 10px;cursor:pointer;margin-top:8px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{display:inline-block}
+.hint{margin:0;font-size:12px;color:var(--muted)}
+@media (max-width:900px){
+  .stage{grid-template-columns:minmax(0,1fr)}
+  .viewport{height:520px}
+  .side{max-height:none}
+  .sigcard{max-height:360px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<div class="app">
+  <header class="top">
+    <div>
+      <h1>KN189 Patient Lanes</h1>
+      <p class="sub">Hypothetical raw data in a KEYNOTE-189-style design: pembrolizumab or placebo + pemetrexed + platinum, 2:1, 60 patients. <b>Synthetic, not real trial data.</b></p>
+    </div>
+    <div class="views" role="tablist" aria-label="View">
+      <button class="tab on" id="v2d" role="tab" aria-selected="true">Lanes 2D</button>
+      <button class="tab" id="v3d" role="tab" aria-selected="false">Layers 3D</button>
+    </div>
+  </header>
+  <section class="controls" aria-label="Controls">
+    <div class="grp"><span class="lbl">Domain layers</span><div class="chips" id="layerChips"></div></div>
+    <label class="switch"><input type="checkbox" id="peel"><span>Peel into lanes</span></label>
+    <div class="grp"><label class="lbl" for="fArm">Arm</label>
+      <select id="fArm"><option value="all">Both arms</option><option value="P">Pembro + chemo</option><option value="B">Placebo + chemo</option></select></div>
+    <div class="grp"><label class="lbl" for="fTps">PD-L1 TPS</label>
+      <select id="fTps"><option value="all">All</option><option value="0">&lt;1%</option><option value="1">1–49%</option><option value="2">≥50%</option></select></div>
+    <div class="grp"><label class="lbl" for="fShow">Subset</label>
+      <select id="fShow"><option value="all">All patients</option><option value="g3">Any grade ≥3 AE</option><option value="ir">Immune-related AE</option><option value="sig">Has a signal</option><option value="xo">Crossed over</option><option value="pd">Progressed</option></select></div>
+    <div class="grp"><label class="lbl" for="fSort">Sort by</label>
+      <select id="fSort"><option value="id">Patient ID</option><option value="pfs">Time to PD / censor</option><option value="trt">Time on treatment</option><option value="ae">Number of AEs</option><option value="alt">Peak ALT ×ULN</option><option value="tps">PD-L1 TPS</option><option value="shr">Best tumor shrinkage</option></select></div>
+    <div class="grp"><label class="lbl" for="fLab">Lab lens</label>
+      <select id="fLab"><option>ALT</option><option>AST</option><option>BILI</option><option>CREAT</option><option>TSH</option><option>ANC</option></select></div>
+  </section>
+  <main class="stage">
+    <div class="viewport" id="vp">
+      <canvas id="cv" aria-label="Patient timelines"></canvas>
+      <div id="three" hidden></div>
+      <div id="lbl3d" hidden></div>
+      <div class="xrnote" id="xrnote" hidden>Drag to orbit, pinch or scroll to zoom, click an event to pick a patient. In a WebXR headset browser (Meta Quest, Android XR on XREAL) the same scene can go immersive with hand tracking.</div>
+      <div class="spread" id="spreadBox" hidden><label for="spread">Layer spread</label><input type="range" id="spread" min="0" max="100" value="55"></div>
+      <div class="zoombar" id="zoombar"><button id="zOut" aria-label="Zoom out">−</button><span id="zLvl">Overview</span><button id="zIn" aria-label="Zoom in">+</button><button id="zFit">Fit</button></div>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+    <aside class="side">
+      <div class="card" id="pcard"><h2>Patient</h2><p class="empty">Click a lane to open one patient's profile.</p></div>
+      <div class="card sigcard"><h2>Signals <span id="sigN"></span></h2><ol id="sigList"></ol></div>
+    </aside>
+  </main>
+  <footer class="legend" id="legend"></footer>
+  <p class="hint" id="hint">Pinch or Ctrl + scroll to zoom time · scroll to move through patients · drag to pan · hover for detail · double-click to zoom in</p>
+</div>
+<script>
+// ---------- Synthetic raw data (seeded, reproducible) ----------
+const CUTOFF = 760;            // global data-cut day since first enrollment
+const DOM = [
+  {k:'EX', name:'Exposure', v:'--c-ex'},
+  {k:'AE', name:'Adverse events', v:'--c-ae'},
+  {k:'LB', name:'Labs', v:'--c-lb'},
+  {k:'TR', name:'Tumor response', v:'--c-tr'},
+  {k:'CM', name:'Con meds', v:'--c-cm'}
+];
+const LABS = {ALT:{uln:40,lln:7,u:'U/L'},AST:{uln:40,lln:10,u:'U/L'},BILI:{uln:1.2,lln:0.2,u:'mg/dL'},
+  CREAT:{uln:1.2,lln:0.6,u:'mg/dL'},TSH:{uln:4.5,lln:0.4,u:'mIU/L'},ANC:{uln:7.5,lln:1.5,u:'10^9/L'}};
+
+function rngFrom(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const R = rngFrom(189);
+const U = (a,b)=>a+(b-a)*R();
+const UI = (a,b)=>Math.floor(U(a,b+1));
+const pick = a=>a[Math.floor(R()*a.length)];
+const expo = med=>-Math.log(1-R())*med/Math.LN2;
+const norm = ()=>{let u=0,v=0;while(!u)u=R();while(!v)v=R();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)};
+
+const CHEMO_AE = [
+  ['Nausea','GI',.55,.04],['Fatigue','General',.45,.06],['Anaemia','Blood',.45,.15],['Neutropenia','Blood',.35,.3],
+  ['Constipation','GI',.3,.01],['Decreased appetite','Metab',.28,.02],['Diarrhoea','GI',.25,.05],['Vomiting','GI',.22,.03],
+  ['Rash','Skin',.18,.02],['Pyrexia','General',.17,.01],['Thrombocytopenia','Blood',.17,.08],['Dyspnoea','Resp',.17,.04],
+  ['Peripheral oedema','General',.15,.0],['Cough','Resp',.15,.0]];
+const IR_AE = [['Hypothyroidism','Endocrine',.07,0],['Pneumonitis','Resp',.05,.45],['Hyperthyroidism','Endocrine',.04,0],
+  ['Colitis','GI',.025,.5],['Hepatitis','Hepatobiliary',.02,.7],['Acute kidney injury','Renal',.04,.4],['Severe skin reaction','Skin',.02,.6]];
+
+function makePatient(i){
+  const arm = R()<2/3?'P':'B';
+  const tg = R()<.31?0:(R()<.47?1:2);
+  const tps = tg===0?0:tg===1?UI(1,49):UI(50,100);
+  const enr = Math.round(U(0,300));
+  const fu = CUTOFF-enr;
+  const sex = R()<.6?'M':'F', age = Math.round(Math.min(84,Math.max(34,64+norm()*9)));
+  const plat = R()<.72?'Carboplatin':'Cisplatin';
+  const ecog = R()<.45?0:1;
+  const id = `189-${String(100+UI(1,9)*10+UI(0,9))}-${String(i+1).padStart(4,'0')}`;
+  // hidden timelines
+  let pfsMed = arm==='P'? (tg===2?380:tg===1?260:200) : 150;
+  const pfs = Math.max(30,expo(pfsMed));
+  const os = pfs + expo(arm==='P'?260:200);
+  const p = {i,id,arm,tps,tg,sex,age,plat,ecog,enr,fu,ex:[],ae:[],lb:[],tr:[],cm:[],ds:{},sig:[]};
+  // tumor scans: wk6,12,18 then q9w
+  const scans=[]; for(let d=43; d<=fu; d+= d<127?42:63) scans.push(d);
+  const base = Math.round(U(35,130));
+  const depth = arm==='P'? Math.min(.98,Math.max(0,U(-.05,.75)+(tg===2?.12:0))) : Math.max(0,U(-.1,.55));
+  p.tr.push({d:-10,sld:base,pct:0,resp:'BL'});
+  let nadir=base, pd=null;
+  for(const d of scans){
+    if(d>os) break;
+    let sld;
+    if(d<pfs){ sld = base*(1-depth*Math.min(1,d/130)) + norm()*2; }
+    else { sld = Math.max(nadir*1.28, nadir+6) + norm()*2; }
+    sld=Math.max(0,Math.round(sld)); nadir=Math.min(nadir,sld);
+    const pct = Math.round((sld-base)/base*100);
+    let resp = pct<=-30?'PR':'SD'; if(sld<=2){resp='CR'}
+    if(!pd && d>=pfs){resp='PD'; pd=d;}
+    else if(pd) resp = 'PD';
+    p.tr.push({d,sld,pct,resp});
+    if(pd && p.tr.filter(t=>t.resp==='PD').length>=2) break;
+  }
+  const death = os<=fu? Math.round(os): null;
+  // treatment end
+  let tbp = pd && arm==='P' && R()<.14 ? UI(2,4):0;            // treatment beyond progression
+  let aeStop = R()<.12 ? Math.round(U(60,400)) : null;          // discontinuation for toxicity
+  let eot = Math.min(fu, death??1e9, pd?pd+tbp*21:1e9, aeStop??1e9, 35*21);
+  // dosing q3w
+  let d=1, c=1, lastDose=1;
+  while(d<=eot){
+    const ind = c<=4;
+    p.ex.push({d,c,drug:arm==='P'?'Pembrolizumab':'Placebo',dose:arm==='P'?'200 mg':'0 mg',ind});
+    if(c<=35) p.ex.push({d,c,drug:'Pemetrexed',dose:'500 mg/m²',ind});
+    if(ind) p.ex.push({d,c,drug:plat,dose:plat==='Carboplatin'?'AUC 5':'75 mg/m²',ind});
+    lastDose=d; c++;
+    d += 21 + (R()<.12?7:0) + (R()<.03?14:0);
+  }
+  // placebo crossover to pembro monotherapy after PD
+  let xo=null;
+  if(arm==='B' && pd && R()<.55 && (!death || death-pd>50)){
+    xo = pd+UI(21,40); let d2=xo, cc=1;
+    const xend = Math.min(fu, death??1e9, xo+expo(160));
+    while(d2<=xend){p.ex.push({d:d2,c:cc++,drug:'Pembrolizumab',dose:'200 mg',xo:true}); d2+=21;}
+  }
+  const ioOn = arm==='P' || xo;
+  const lastEx = Math.max(...p.ex.map(e=>e.d));
+  // AEs
+  const span = Math.max(30,lastEx+30);
+  for(const [term,soc,rate,g3] of CHEMO_AE){
+    if(R()<rate*(eot>60?1:.6)){
+      const s=Math.round(U(2,Math.min(span,eot+21))); const g = R()<g3? (R()<.15?4:3) : (R()<.6?1:2);
+      p.ae.push({s,e:s+UI(3,g>=3?28:20),term,soc,g,ir:false,ser:g>=3&&R()<.5});
+    }
+  }
+  if(ioOn){
+    const st = xo||1;
+    for(const [term,soc,rate,g3] of IR_AE){
+      if(R()<rate*2.2){
+        const s=Math.round(st+U(30,Math.max(60,lastEx-st+20))); const g = R()<g3?(R()<.12?4:3):(R()<.5?1:2);
+        p.ae.push({s,e:s+UI(14,term.includes('thyroid')?300:60),term,soc,g,ir:true,ser:g>=3});
+      }
+    }
+  }
+  if(aeStop){ p.ae.push({s:aeStop-UI(5,15),e:aeStop+UI(10,40),term:pick(['Pneumonitis','Neutropenic sepsis','Acute kidney injury','Colitis']),soc:'—',g:3,ir:false,ser:true,dc:true}); }
+  if(death && R()<.08){ p.ae.push({s:death-UI(1,6),e:death,term:pick(['Pneumonia','Sepsis','Cardiac arrest']),soc:'Fatal',g:5,ir:false,ser:true}); }
+  p.ae.sort((a,b)=>a.s-b.s);
+  if(death){p.ae=p.ae.filter(a=>a.s<=death);p.ae.forEach(a=>{if(a.e>death)a.e=death})}
+  // Labs: screening + day 1 of each cycle (+ crossover cycles)
+  const visits=[-7,...new Set(p.ex.map(e=>e.d))].filter(v=>v<=fu).sort((a,b)=>a-b);
+  const has = t=>p.ae.find(a=>a.term===t);
+  const hep=has('Hepatitis'), aki=has('Acute kidney injury'), hypo=has('Hypothyroidism'), hyper=has('Hyperthyroidism'), neut=has('Neutropenia');
+  const bALT=U(14,30), bCR=U(.65,1.05), bTSH=U(1,2.8), bANC=U(3,6), bBI=U(.3,.8);
+  for(const v of visits){
+    const inAE=(a,pad=10)=>a&&v>=a.s-3&&v<=a.e+pad;
+    const alt = bALT*(1+.15*norm()) * (inAE(hep)? U(3.2,6):1) * (v>1&&R()<.06?U(1.6,2.6):1);
+    const ast = alt*U(.8,1.15);
+    const bili = bBI*(1+.15*norm()) * (inAE(hep)&&hep.g>=3? U(1.5,2.6):1);
+    const cr = bCR*(1+.08*norm()) * (inAE(aki)? U(1.6,2.8):1) * (1+Math.min(.25,v/2500));
+    const tsh = bTSH*(1+.2*norm()) * (inAE(hypo,400)? U(3,6): inAE(hyper)? U(.03,.12):1);
+    const anc = bANC*(1+.2*norm()) * (inAE(neut)? U(.18,.45): v>1?U(.7,1):1);
+    const vals={ALT:alt,AST:ast,BILI:bili,CREAT:cr,TSH:tsh,ANC:anc};
+    for(const t in vals){
+      if(t==='TSH' && v>1 && (visits.indexOf(v)%2)) continue;
+      const L=LABS[t], val=+vals[t].toFixed(t==='ALT'||t==='AST'?0:2);
+      p.lb.push({d:v,t,val,x:val/L.uln,f:val>L.uln?'H':val<L.lln?'L':''});
+    }
+  }
+  // Con meds
+  p.cm.push({s:-7,e:Math.min(fu,(arm==='P'||!xo?lastDose:lastDose)+21),name:'Folic acid',why:'Pemetrexed premedication',bg:true});
+  for(const a of p.ae){
+    if(a.ir && a.g>=2 && !a.term.includes('thyroid')) p.cm.push({s:a.s+UI(0,3),e:a.s+UI(28,56),name:'Prednisone',why:a.term});
+    if(a.term==='Hypothyroidism') p.cm.push({s:a.s+UI(5,20),e:fu,name:'Levothyroxine',why:a.term});
+    if(a.term==='Neutropenia'&&a.g>=3) p.cm.push({s:a.s+1,e:a.s+8,name:'Filgrastim',why:a.term});
+  }
+  p.ds = {eot:lastEx, pd, death, xo, tbp:tbp&&pd?true:false, aeStop, reason: death&&death<=lastEx+30?'Death':pd&&lastEx>=pd-21? 'Progressive disease': aeStop?'Adverse event': lastEx+21>=fu?'Ongoing':'Completed / other', last: death??fu};
+  return p;
+}
+const PTS = Array.from({length:60},(_,i)=>makePatient(i));
+
+// Plant a few known data problems so the signal engine has edge cases to find
+(function plant(){
+  let pw = PTS.filter(p=>p.arm==='P'&&p.ex.length>20);
+  if(pw.length<9) pw = PTS.filter(p=>p.ex.length>14).sort((a,b)=>b.ex.length-a.ex.length);
+  pw = Array.from({length:9},(_,k)=>pw[k%pw.length]);
+  // 1) Hy's law pattern
+  const h = pw[2]; const vd = h.ex[h.ex.length>40?30:12].d;
+  h.lb.filter(l=>l.d===vd).forEach(l=>{ if(l.t==='ALT'){l.val=172;l.x=4.3;l.f='H'} if(l.t==='AST'){l.val=150;l.x=3.75;l.f='H'} if(l.t==='BILI'){l.val=2.9;l.x=2.42;l.f='H'} });
+  h.ae.push({s:vd-2,e:vd+35,term:'Hepatitis',soc:'Hepatobiliary',g:3,ir:true,ser:true}); h.ae.sort((a,b)=>a.s-b.s);
+  h.cm.push({s:vd+1,e:vd+45,name:'Prednisone',why:'Hepatitis'});
+  // 2) AE recorded after death date
+  const dd = PTS.find(p=>p.ds.death && p.ds.death>120 && !p.ae.some(a=>a.g===5));
+  if(dd) dd.ae.push({s:dd.ds.death+9,e:dd.ds.death+14,term:'Fatigue',soc:'General',g:1,ir:false,ser:false});
+  // 3) Grade 3 irAE with no steroid
+  const ns = pw[5]; const s = Math.min(ns.ds.eot-10,120);
+  ns.ae.push({s,e:s+30,term:'Colitis',soc:'GI',g:3,ir:true,ser:true}); ns.ae.sort((a,b)=>a.s-b.s);
+  // 4) Long dosing gap
+  const lg = pw[8]; const k = Math.min(10,lg.ex.length-1); const cut = lg.ex[k].d;
+  lg.ex.forEach(e=>{ if(e.d>=cut && !e.xo) e.d+=35 }); lg.ex=lg.ex.filter(e=>e.d<=lg.fu);
+})();
+
+// ---------- Derived per-patient metrics + signal engine ----------
+for(const p of PTS){
+  const pd = p.ds.pd; p.pfsT = pd ?? (p.ds.death ?? p.fu);
+  const exP = p.ex.filter(e=>!e.xo); p.trtT = exP.length? Math.max(...exP.map(e=>e.d)):0;
+  p.nAE = p.ae.length; p.g3 = p.ae.some(a=>a.g>=3); p.irAny = p.ae.some(a=>a.ir);
+  p.altMax = Math.max(...p.lb.filter(l=>l.t==='ALT').map(l=>l.x));
+  p.best = Math.min(0,...p.tr.filter(t=>t.d>0 && (!pd||t.d<=pd)).map(t=>t.pct));
+  const bor = p.tr.filter(t=>t.d>0).map(t=>t.resp); p.bor = bor.includes('CR')?'CR':bor.includes('PR')?'PR':bor.includes('SD')?'SD':bor.includes('PD')?'PD':'NE';
+  p.ds.eot = p.trtT;
+  const S=(sev,title,detail,day)=>p.sig.push({sev,title,detail,day,p});
+  // Hy's law
+  const days=[...new Set(p.lb.map(l=>l.d))];
+  for(const d of days){ const a=p.lb.find(l=>l.d===d&&l.t==='ALT'), b=p.lb.find(l=>l.d===d&&l.t==='BILI');
+    if(a&&b&&a.x>3&&b.x>2) S('crit',"Potential Hy's law",`ALT ${a.x.toFixed(1)}×ULN with bilirubin ${b.x.toFixed(1)}×ULN on the same visit`,d); }
+  // AE after death
+  if(p.ds.death) for(const a of p.ae) if(a.s>p.ds.death) S('crit','AE starts after death',`${a.term} starts day ${a.s}, death on day ${p.ds.death}`,a.s);
+  // irAE >=3 without steroid
+  for(const a of p.ae) if(a.ir && a.g>=3 && !a.term.includes('thyroid') && !p.cm.some(c=>c.name==='Prednisone'&&c.s>=a.s-3&&c.s<=a.s+14))
+    S('warn','Grade ≥3 irAE, no steroid recorded',`${a.term} grade ${a.g} on day ${a.s}; no corticosteroid within 14 days`,a.s);
+  // dosing gap
+  const io=[...new Set(p.ex.filter(e=>!e.xo).map(e=>e.d))].sort((a,b)=>a-b);
+  for(let j=1;j<io.length;j++) if(io[j]-io[j-1]>42) S('warn','Dosing gap over 6 weeks',`${io[j]-io[j-1]} days between cycles (day ${io[j-1]} → ${io[j]})`,io[j-1]);
+  // treatment beyond progression
+  if(pd){ const after = io.filter(d=>d>pd); if(after.length) S('info','Dosed after documented PD',`${after.length} cycle(s) after PD on day ${pd}; check treatment-beyond-progression criteria`,after[0]); }
+  if(p.ds.xo) S('info','Crossover to pembrolizumab',`Placebo arm, PD day ${pd}, pembrolizumab from day ${p.ds.xo}`,p.ds.xo);
+}
+const ALLSIG = PTS.flatMap(p=>p.sig);
+// ---------- 2D lanes with semantic zoom ----------
+const $=id=>document.getElementById(id);
+const ST={view:'2d',layers:new Set(DOM.map(d=>d.k)),peel:false,arm:'all',tps:'all',show:'all',sort:'id',lab:'ALT',sel:null,focus:null,ppd:1,x0:-20,y0:0,yRow:null};
+const COL={};
+const CN=['bg','panel','ink','muted','line','grid','soft','accent','pbo','c-ex','c-ae','c-lb','c-tr','c-cm','c-ds','g1','g2','g3','g4','g5','ok','warn','crit'];
+function readColors(){const cs=getComputedStyle(document.documentElement);CN.forEach(n=>COL[n]=cs.getPropertyValue('--'+n).trim()||'#888')}
+const MONO='"JetBrains Mono",ui-monospace,Menlo,monospace', BODY='Barlow,system-ui,sans-serif';
+const gc=g=>COL['g'+Math.min(5,Math.max(1,g))];
+const armC=p=>p.arm==='P'?COL.accent:COL.pbo;
+const sevC=s=>s==='crit'?COL.crit:s==='warn'?COL.warn:COL.accent;
+const RESP={CR:'Complete response',PR:'Partial response',SD:'Stable disease',PD:'Progressive disease',NE:'Not evaluable',BL:'Baseline'};
+const RC=r=>r==='PR'||r==='CR'?COL['c-tr']:r==='PD'?COL.crit:COL.muted;
+const cv=$('cv'),ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1,LW=132,hits=[],ROWS=[],rowH=20,laneH=15,prevRowH=0,SIGV=[];
+const AX=28;
+const level=(ppd=ST.ppd)=>ppd<0.8?0:ppd<3?1:2;
+const X=d=>LW+(d-ST.x0)*ST.ppd;
+const dayAt=px=>ST.x0+(px-LW)/ST.ppd;
+const maxDay=()=>Math.max(...(ROWS.length?ROWS:PTS).map(p=>p.fu));
+const fitPPD=()=>Math.max(.2,(W-LW-24)/(maxDay()+40));
+
+function filterRows(){
+  const r=PTS.filter(p=>(ST.arm==='all'||p.arm===ST.arm)&&(ST.tps==='all'||p.tg===+ST.tps)&&
+    (ST.show==='all'||(ST.show==='g3'&&p.g3)||(ST.show==='ir'&&p.irAny)||(ST.show==='sig'&&p.sig.length)||(ST.show==='xo'&&p.ds.xo)||(ST.show==='pd'&&p.ds.pd)));
+  const key={id:p=>p.i,pfs:p=>-p.pfsT,trt:p=>-p.trtT,ae:p=>-p.nAE,alt:p=>-p.altMax,tps:p=>-p.tps,shr:p=>p.best}[ST.sort];
+  return r.sort((a,b)=>key(a)-key(b)||a.i-b.i);
+}
+function rowHFor(ppd){const L=level(ppd),nl=Math.max(1,ST.layers.size);return ST.peel?10+nl*(L===2?26:15):(L===2?32:20)}
+function layout(){
+  laneH=level()===2?26:15; rowH=rowHFor(ST.ppd);
+  if(prevRowH&&rowH!==prevRowH&&ST.yRow==null){const c=(H-AX)/2;ST.y0=(ST.y0+c)*rowH/prevRowH-c}
+  prevRowH=rowH;
+  if(ST.yRow!=null) ST.y0=ST.yRow*rowH-(H-AX)/4;
+}
+function clampView(){
+  ST.ppd=Math.min(40,Math.max(fitPPD()*.85,ST.ppd));
+  const vis=(W-LW)/ST.ppd; ST.x0=Math.max(-60,Math.min(ST.x0,Math.max(-60,maxDay()+40-vis)));
+  ST.y0=Math.max(0,Math.min(ST.y0,Math.max(0,ROWS.length*rowH-(H-AX)+8)));
+}
+function resize(){const r=cv.getBoundingClientRect();if(!r.width)return;DPR=window.devicePixelRatio||1;W=r.width;H=r.height;cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);LW=W<520?86:132}
+
+// primitives
+function line(x1,y1,x2,y2,c,w=1,dash){ctx.strokeStyle=c;ctx.lineWidth=w;ctx.setLineDash(dash||[]);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.setLineDash([])}
+function rect(x,y,w,h,c,a=1){ctx.globalAlpha=a;ctx.fillStyle=c;ctx.fillRect(x,y,w,h);ctx.globalAlpha=1}
+function circ(x,y,r,fill,stroke,lw=1.2){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw;ctx.stroke()}}
+function text(s,x,y,c,font,align='left'){ctx.fillStyle=c;ctx.font=font||'10px '+MONO;ctx.textAlign=align;ctx.fillText(s,x,y)}
+function poly(pts,c){ctx.beginPath();pts.forEach(([x,y],k)=>k?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fillStyle=c;ctx.fill()}
+const diamond=(x,y,r,c)=>poly([[x,y-r],[x+r,y],[x,y+r],[x-r,y]],c);
+const triDown=(x,y,r,c)=>poly([[x-r,y-r*.8],[x+r,y-r*.8],[x,y+r*.8]],c);
+const triRight=(x,y,r,c)=>poly([[x-r*.7,y-r],[x+r,y],[x-r*.7,y+r]],c);
+function cross(x,y,r,c){line(x-r,y-r,x+r,y+r,c,2);line(x-r,y+r,x+r,y-r,c,2)}
+function hit(x,y,w,h,p,html,lab){hits.push({x,y,w,h,p,html,lab})}
+const inView=x=>x>LW-30&&x<W+30;
+
+// tooltips
+const aeTip=a=>`<b>${a.term}</b> · grade ${a.g}${a.ir?' · immune-related':''}${a.ser?' · serious':''}<br>Day ${a.s} to ${a.e}${a.dc?'<br>Led to stopping treatment':''}`;
+const labTip=(l,p)=>{let s=`<b>${l.t} ${l.val} ${LABS[l.t].u}</b>${l.f?(l.f==='H'?' high':' low'):''}<br>${l.x.toFixed(2)}× upper limit of normal · Day ${l.d}`;
+  if(l.t==='ALT'||l.t==='AST'){const b=p.lb.find(m=>m.d===l.d&&m.t==='BILI');if(b)s+=`<br>Bilirubin same visit: ${b.x.toFixed(2)}× ULN`}return s};
+const cmTip=c=>`<b>${c.name}</b><br>Day ${c.s} to ${c.e} · for ${c.why}`;
+
+// one function per domain layer: (patient, lane centre y, lane height, peeled?)
+function packed(p,items,cy,h,tn,colorFn,labelFn,tipFn,outlineFn){
+  const L=level(),th=(h-6)/tn,tr=new Array(tn).fill(-1e9);ctx.font='10px '+BODY;
+  for(const a of items){
+    let k=tr.findIndex(t=>t<a.s);if(k<0)k=tr.indexOf(Math.min(...tr));
+    const x=X(a.s),w=Math.max(2,(a.e-a.s)*ST.ppd),yy=cy-h/2+3+k*th;
+    const lab=L===2&&th>=7?labelFn(a):'';ctx.font='10px '+BODY;const lw=lab?ctx.measureText(lab).width+8:0;
+    tr[k]=a.e+(lw+4)/ST.ppd;
+    if(x>W+20||x+w+lw<LW-20)continue;
+    rect(x,yy+1,w,th-2,colorFn(a),.92);
+    if(outlineFn&&outlineFn(a)){ctx.strokeStyle=COL.ink;ctx.lineWidth=1;ctx.strokeRect(x+.5,yy+1.5,Math.max(1,w-1),th-3)}
+    if(lab)text(lab,x+w+4,yy+th/2+3.5,COL.ink,'10px '+BODY);
+    hit(x,yy,Math.max(w,4),th,p,tipFn(a));
+  }
+}
+const DRAW={
+  EX(p,cy,h,peel){const L=level();
+    if(peel){rect(X(1),cy-2,(p.trtT+20)*ST.ppd,4,armC(p),.3);
+      if(p.ds.xo){const xs=p.ex.filter(e=>e.xo);if(xs.length)rect(X(p.ds.xo),cy-2,(xs[xs.length-1].d-p.ds.xo+21)*ST.ppd,4,COL.accent,.3)}}
+    if(L===0)return;
+    const th=peel?h*.62:(L===2?12:8);
+    for(const e of p.ex){if(!(e.drug==='Placebo'||e.drug==='Pembrolizumab'))continue;const x=X(e.d);if(!inView(x))continue;
+      line(x,cy-th/2,x,cy+th/2,e.xo?COL.accent:COL['c-ex'],L===2?2:1.4);
+      const chem=e.xo?[]:p.ex.filter(c=>c.d===e.d&&c!==e&&!c.xo);
+      if(L===2&&peel){chem.forEach((c,k)=>circ(x+4.5,cy-th/2+3+k*5,1.8,c.drug==='Pemetrexed'?COL['c-ex']:COL.ink));
+        if(ST.ppd*21>30)text('C'+e.c,x+8,cy+th/2-1,COL.muted,'9px '+MONO)}
+      hit(x-3,cy-th/2,7,th,p,`<b>Cycle ${e.c}${e.xo?' (crossover)':''}</b> · Day ${e.d}<br>${e.drug} ${e.dose}${chem.length?'<br>+ '+chem.map(c=>c.drug+' '+c.dose).join('<br>+ '):''}`)}
+  },
+  AE(p,cy,h,peel){const L=level();
+    if(peel){packed(p,p.ae.filter(a=>L>0||a.g>=3),cy,h,L===2?3:2,a=>gc(a.g),a=>`${a.term} ${a.g}`,aeTip,a=>a.ir);return}
+    for(const a of p.ae){if(L===0&&a.g<3)continue;const x=X(a.s);if(!inView(x)&&!inView(X(a.e)))continue;
+      if(L===0){triDown(x,cy-7,4.5,gc(a.g));hit(x-5,cy-12,10,10,p,aeTip(a));continue}
+      const yy=cy+(L===2?6:4),hh=L===2?4:2.5,w=Math.max(2,(a.e-a.s)*ST.ppd);
+      rect(x,yy,w,hh,gc(a.g),.95);if(a.ir)line(x,yy-.8,x+w,yy-.8,COL.ink,1);
+      hit(x,yy-3,w,hh+6,p,aeTip(a))}
+  },
+  LB(p,cy,h,peel){const L=level(),t=ST.lab,pts=p.lb.filter(l=>l.t===t);
+    if(peel&&L>=1){const top=cy-h/2+3,bot=cy+h/2-3,lim=t==='TSH'?4:t==='ANC'?1.6:5;
+      const yv=x=>bot-(Math.min(lim,x)/lim)*(bot-top);
+      line(X(-10),yv(1),X(p.ds.last),yv(1),COL['c-lb'],.8,[3,3]);
+      if(t==='ANC')line(X(-10),yv(LABS.ANC.lln/LABS.ANC.uln),X(p.ds.last),yv(LABS.ANC.lln/LABS.ANC.uln),COL['c-lb'],.8,[1,3]);
+      if(L===2){ctx.beginPath();pts.forEach((l,k)=>{const xx=X(l.d),yy=yv(l.x);k?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.strokeStyle=COL['c-lb'];ctx.lineWidth=1.3;ctx.stroke()}
+      for(const l of pts){const xx=X(l.d);if(!inView(xx))continue;const yy=yv(l.x);
+        if(l.f)circ(xx,yy,L===2?3:2.4,l.f==='H'?COL['c-lb']:COL.panel,COL['c-lb']);else if(L===2)circ(xx,yy,1.5,COL.muted);
+        if(L===2&&l.f&&(l.x>=2||l.f==='L'))text(l.x.toFixed(1)+'×',xx+4,yy-4,COL['c-lb'],'9px '+MONO);
+        hit(xx-4,yy-4,8,8,p,labTip(l,p))}
+      return}
+    if(L===0&&!peel)return;
+    const yy=peel?cy:cy-(L===2?11:6);
+    for(const l of pts){if(!l.f||(L===0&&l.x<3))continue;const xx=X(l.d);if(!inView(xx))continue;
+      const r=Math.min(4,1.6+Math.abs(Math.log2(l.x))*.9);circ(xx,yy,r,l.f==='H'?COL['c-lb']:COL.panel,COL['c-lb']);
+      if(L===2&&l.x>=2)text(l.x.toFixed(1)+'×',xx+r+2,yy+3,COL['c-lb'],'9px '+MONO);
+      hit(xx-4,yy-4,8,8,p,labTip(l,p))}
+  },
+  TR(p,cy,h,peel){const L=level();if(L===0)return;
+    let yv=()=>cy;
+    if(peel&&L===2){const top=cy-h/2+4,bot=cy+h/2-4;yv=v=>top+(60-Math.min(60,Math.max(-100,v)))/160*(bot-top);
+      line(X(-10),yv(0),X(p.ds.last),yv(0),COL.line,1);line(X(-10),yv(-30),X(p.ds.last),yv(-30),COL['c-tr'],.8,[3,3]);
+      ctx.beginPath();p.tr.forEach((t,k)=>{const xx=X(t.d),yy=yv(t.pct);k?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.strokeStyle=COL['c-tr'];ctx.lineWidth=1.2;ctx.stroke()}
+    for(const t of p.tr){const xx=X(t.d);if(!inView(xx))continue;const yy=yv(t.pct);
+      if(t.resp==='BL')circ(xx,yy,2,COL.muted);
+      else{const r=L===2?4.5:3.3;circ(xx,yy,r,t.resp==='SD'?COL.panel:RC(t.resp),RC(t.resp),1.4);if(t.resp==='CR')circ(xx,yy,r+2.5,null,RC(t.resp),1);
+        if(L===2&&peel)text(`${t.resp} ${t.pct>0?'+':''}${t.pct}%`,xx+7,yy+3.5,COL.muted,'9px '+MONO)}
+      hit(xx-5,yy-5,10,10,p,`<b>${RESP[t.resp]}</b> · Day ${t.d}<br>Sum of target lesions ${t.sld} mm (${t.pct>0?'+':''}${t.pct}% vs baseline)`)}
+  },
+  CM(p,cy,h,peel){const L=level();
+    if(peel){const list=p.cm.filter(c=>L===2||!c.bg);packed(p,list,cy,h,Math.min(3,Math.max(1,list.length)),c=>COL['c-cm'],c=>c.name,cmTip);return}
+    if(L===0)return;const yy=cy+(L===2?12:8);
+    for(const c of p.cm){if(c.bg)continue;const x=X(c.s),w=Math.max(2,(c.e-c.s)*ST.ppd);rect(x,yy,w,1.8,COL['c-cm']);hit(x,yy-3,w,8,p,cmTip(c))}
+  }
+};
+function drawDS(p,y){
+  const L=level(),cy=y+rowH/2,top=y+3,bot=y+rowH-3,my=ST.peel?top+5:cy;
+  if(p.ds.pd){const x=X(p.ds.pd);if(ST.peel)line(x,top,x,bot,COL.crit,1,[2,2]);diamond(x,my,L===0?4:5,COL.crit);hit(x-5,my-6,10,12,p,`<b>Progressive disease</b> · Day ${p.ds.pd}`)}
+  if(p.ds.xo){const x=X(p.ds.xo);triRight(x,my,4.5,COL.accent);hit(x-5,my-6,10,12,p,`<b>Crossover</b> to pembrolizumab · Day ${p.ds.xo}`)}
+  if(p.ds.death){const x=X(p.ds.death);if(ST.peel)line(x,top,x,bot,COL.ink,1,[2,2]);cross(x,my,3.5,COL.ink);hit(x-5,my-6,10,12,p,`<b>Death</b> · Day ${p.ds.death}`)}
+  else{const x=X(p.fu);line(x,my-5,x,my+5,COL.muted,1.5);hit(x-4,my-6,8,12,p,`<b>Alive at data cut</b> · Day ${p.fu}`)}
+  for(const s of p.sig){if(s.sev==='info')continue;const x=X(s.day),f=ST.focus===s;circ(x,cy,f?11:8,null,sevC(s.sev),f?2.5:1.3);if(f)circ(x,cy,15,null,sevC(s.sev),1)}
+}
+function drawRow(p,y,i){
+  if(ST.sel===p)rect(LW,y,W-LW,rowH,COL.accent,.09);else if(i%2)rect(LW,y,W-LW,rowH,COL.soft);
+  if(ST.peel){
+    DOM.filter(d=>ST.layers.has(d.k)).forEach((d,j)=>{const lc=y+5+j*laneH+laneH/2;
+      line(X(1),lc,X(p.ds.last),lc,COL.grid,1);DRAW[d.k](p,lc,laneH,true)});
+    line(LW,y+rowH-.5,W,y+rowH-.5,COL.line,1);
+  }else{
+    const cy=y+rowH/2,L=level(),bh=L===0?6:L===1?5:7;
+    line(X(1),cy,X(p.ds.last),cy,COL.line,1);
+    rect(X(1),cy-bh/2,Math.max(1,(p.trtT+20)*ST.ppd),bh,armC(p),.5);
+    if(p.ds.xo){const xs=p.ex.filter(e=>e.xo);if(xs.length)rect(X(p.ds.xo),cy-bh/2,(xs[xs.length-1].d-p.ds.xo+21)*ST.ppd,bh,COL.accent,.25)}
+    DOM.forEach(d=>{if(ST.layers.has(d.k))DRAW[d.k](p,cy,rowH,false)});
+  }
+  drawDS(p,y);
+}
+const tickStep=()=>[7,21,42,84,168,336].find(s=>s*ST.ppd>=58)||336;
+function drawAxis(st){
+  rect(0,0,W,AX,COL.panel);line(0,AX-.5,W,AX-.5,COL.line);
+  ctx.save();ctx.beginPath();ctx.rect(LW,0,W-LW,AX);ctx.clip();
+  for(let t=Math.ceil((ST.x0-1)/st)*st+1;X(t)<W+40;t+=st){const x=X(t);line(x+.5,AX-5,x+.5,AX,COL.muted);text(t===1?'Day 1':`Wk ${(t-1)/7}`,x+3,AX-9,COL.muted,'10px '+MONO)}
+  ctx.restore();text(LW<100?'Patient':'Patient · week',10,AX-9,COL.muted,'600 10px '+BODY);
+}
+function drawLabels(){
+  rect(0,AX,LW,H-AX,COL.panel);line(LW-.5,AX,LW-.5,H,COL.line);
+  ROWS.forEach((p,i)=>{const y=AX+i*rowH-ST.y0;if(y+rowH<AX||y>H)return;
+    if(ST.sel===p)rect(0,y,LW,rowH,COL.accent,.14);
+    const ty=ST.peel?y+15:y+rowH/2+(rowH>=30?-2:4);
+    rect(9,ty-8,4,10,armC(p));
+    const id=LW<100?p.id.slice(-4):p.id;text(id,17,ty,COL.ink,'11px '+MONO);
+    if(p.sig.some(s=>s.sev!=='info')){ctx.font='11px '+MONO;const sv=p.sig.some(s=>s.sev==='crit')?'crit':'warn';circ(17+ctx.measureText(id).width+7,ty-4,3.2,sevC(sv))}
+    if(ST.peel||rowH>=30)text(`TPS ${p.tps}% · ${p.bor}`,17,ty+13,COL.muted,'11px '+BODY);
+    if(ST.peel)DOM.filter(d=>ST.layers.has(d.k)).forEach((d,j)=>{if(j===0&&LW<100)return;text(d.k,LW-6,y+5+j*laneH+laneH/2+3,COL[d.v.slice(2)],'9px '+MONO,'right')});
+    hit(0,y,LW,rowH,p,`<b>${p.id}</b><br>${p.arm==='P'?'Pembrolizumab':'Placebo'} + pemetrexed + ${p.plat.toLowerCase()}<br>PD-L1 TPS ${p.tps}% · best response: ${RESP[p.bor]}`,true)});
+}
+function draw(){
+  if(ST.view!=='2d'||!W)return;
+  ctx.setTransform(DPR,0,0,DPR,0,0);rect(0,0,W,H,COL.panel);
+  layout();clampView();hits=[];
+  const st=tickStep();
+  ctx.save();ctx.beginPath();ctx.rect(LW,AX,W-LW,H-AX);ctx.clip();
+  for(let t=Math.ceil((ST.x0-1)/st)*st+1;X(t)<W;t+=st)line(X(t)+.5,AX,X(t)+.5,H,COL.grid,1);
+  ROWS.forEach((p,i)=>{const y=AX+i*rowH-ST.y0;if(y+rowH<AX||y>H)return;drawRow(p,y,i)});
+  ctx.restore();
+  drawLabels();drawAxis(st);
+  if(!ROWS.length)text('No patients match these filters.',LW+16,AX+30,COL.muted,'14px '+BODY);
+  $('zLvl').textContent=['Overview','Events','Detail'][level()];
+}
+// ---------- Interaction, panels, 3D layers, boot ----------
+function hitAt(px,py){if(py<AX)return null;for(let k=hits.length-1;k>=0;k--){const h=hits[k];if((px<LW)!==!!h.lab)continue;
+  if(px>=h.x-1&&px<=h.x+h.w+1&&py>=h.y-1&&py<=h.y+h.h+1)return h}return null}
+function showTip(h,px,py){const t=$('tip');if(!h){t.hidden=true;return}t.innerHTML=h.html;t.hidden=false;
+  const vp=$('vp'),r=t.getBoundingClientRect();let x=px+14,y=py+14;
+  if(x+r.width>vp.clientWidth-6)x=px-r.width-14;if(y+r.height>vp.clientHeight-6)y=py-r.height-14;
+  t.style.left=Math.max(4,x)+'px';t.style.top=Math.max(4,y)+'px'}
+function zoomAt(px,f,smooth){const day=dayAt(px),ppd=Math.min(40,Math.max(fitPPD()*.85,ST.ppd*f)),to={ppd,x0:day-(px-LW)/ppd};
+  if(smooth)anim(to);else{ST.ppd=to.ppd;ST.x0=to.x0;draw()}}
+function anim(to){const fr={ppd:ST.ppd,x0:ST.x0},frRow=(ST.y0+(H-AX)/4)/rowH,t0=performance.now(),red=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const step=now=>{const k=red?1:Math.min(1,(now-t0)/300),e=1-Math.pow(1-k,3);
+    ST.ppd=Math.exp(Math.log(fr.ppd)+(Math.log(to.ppd)-Math.log(fr.ppd))*e);ST.x0=fr.x0+(to.x0-fr.x0)*e;
+    if(to.row!=null&&to.row>=0)ST.yRow=frRow+(to.row-frRow)*e;
+    draw();if(k<1)requestAnimationFrame(step);else ST.yRow=null};
+  requestAnimationFrame(step)}
+
+const ptrs=new Map();let drag=null,pinch=null,moved=false;
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.offsetX,y:e.offsetY});moved=false;ST.yRow=null;
+  if(ptrs.size===1){drag={x:e.offsetX,y:e.offsetY,x0:ST.x0,y0:ST.y0};cv.classList.add('drag')}
+  else if(ptrs.size===2){const[a,b]=[...ptrs.values()],cx=(a.x+b.x)/2;pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,ppd:ST.ppd,cx,day:dayAt(cx)};drag=null}});
+cv.addEventListener('pointermove',e=>{
+  if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.offsetX,y:e.offsetY});
+  if(pinch&&ptrs.size===2){const[a,b]=[...ptrs.values()];ST.ppd=Math.min(40,Math.max(fitPPD()*.85,pinch.ppd*Math.hypot(a.x-b.x,a.y-b.y)/pinch.d));
+    ST.x0=pinch.day-(pinch.cx-LW)/ST.ppd;moved=true;$('tip').hidden=true;draw();return}
+  if(drag){const dx=e.offsetX-drag.x,dy=e.offsetY-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)moved=true;
+    if(moved){ST.x0=drag.x0-dx/ST.ppd;ST.y0=drag.y0-dy;$('tip').hidden=true;draw()}return}
+  showTip(hitAt(e.offsetX,e.offsetY),e.offsetX,e.offsetY)});
+const up2=e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;cv.classList.remove('drag');
+  if(drag&&!moved&&e.type==='pointerup'&&e.offsetY>AX){const h=hitAt(e.offsetX,e.offsetY),p=h?h.p:ROWS[Math.floor((e.offsetY-AX+ST.y0)/rowH)];if(p)select(p)}
+  drag=null};
+cv.addEventListener('pointerup',up2);cv.addEventListener('pointercancel',up2);
+cv.addEventListener('pointerleave',()=>{$('tip').hidden=true});
+cv.addEventListener('wheel',e=>{e.preventDefault();ST.yRow=null;$('tip').hidden=true;const m=e.deltaMode===1?16:1;
+  if(e.ctrlKey||e.metaKey)zoomAt(e.offsetX,Math.exp(-e.deltaY*m*.01));
+  else if(e.shiftKey||Math.abs(e.deltaX)>Math.abs(e.deltaY)){ST.x0+=(e.deltaX||e.deltaY)*m/ST.ppd;draw()}
+  else{ST.y0+=e.deltaY*m;draw()}},{passive:false});
+cv.addEventListener('dblclick',e=>zoomAt(e.offsetX,2.2,true));
+cv.tabIndex=0;
+cv.addEventListener('keydown',e=>{const c=LW+(W-LW)/2;
+  if(e.key==='+'||e.key==='=')zoomAt(c,1.6,true);else if(e.key==='-')zoomAt(c,1/1.6,true);
+  else if(e.key==='ArrowRight'){ST.x0+=60/ST.ppd;draw()}else if(e.key==='ArrowLeft'){ST.x0-=60/ST.ppd;draw()}
+  else if(e.key==='ArrowDown'){ST.y0+=rowH;draw()}else if(e.key==='ArrowUp'){ST.y0-=rowH;draw()}else return;e.preventDefault()});
+$('zIn').onclick=()=>zoomAt(LW+(W-LW)/2,1.8,true);
+$('zOut').onclick=()=>zoomAt(LW+(W-LW)/2,1/1.8,true);
+$('zFit').onclick=()=>anim({ppd:fitPPD(),x0:-20});
+
+// ---- panels ----
+function select(p){ST.sel=p;if(ST.focus&&ST.focus.p!==p)ST.focus=null;renderCard();markSig();draw();if(T3.lib&&ST.view==='3d')T3.highlight()}
+function renderCard(){const p=ST.sel,el=$('pcard');
+  if(!p){el.innerHTML='<h2>Patient</h2><p class="empty">Click a lane to open one patient\'s profile.</p>';return}
+  const ev=[];p.ae.filter(a=>a.g>=3).forEach(a=>ev.push([a.s,`${a.term}, grade ${a.g}${a.ir?', immune-related':''}`,gc(a.g)]));
+  if(p.ds.pd)ev.push([p.ds.pd,'Progressive disease',COL.crit]);if(p.ds.xo)ev.push([p.ds.xo,'Crossover to pembrolizumab',COL.accent]);
+  if(p.ds.death)ev.push([p.ds.death,'Death',COL.ink]);p.sig.forEach(s=>ev.push([s.day,s.title,sevC(s.sev)]));ev.sort((a,b)=>a[0]-b[0]);
+  const i=ROWS.indexOf(p);
+  el.innerHTML=`<h2>Patient <span>${i<0?'outside this subset':(i+1)+' of '+ROWS.length}</span></h2>
+  <p class="pid">${p.id}<span class="arm" style="background:${armC(p)}">${p.arm==='P'?'Pembro + chemo':'Placebo + chemo'}</span></p>
+  <dl class="kv"><dt>Age / sex</dt><dd>${p.age} / ${p.sex}</dd><dt>PD-L1 TPS</dt><dd>${p.tps}%</dd><dt>ECOG status</dt><dd>${p.ecog}</dd><dt>Platinum</dt><dd>${p.plat}</dd>
+  <dt>Best response</dt><dd>${RESP[p.bor]} (${p.best}%)</dd><dt>Progression</dt><dd>${p.ds.pd?'Day '+p.ds.pd:'None through day '+(p.ds.death??p.fu)}</dd>
+  <dt>Status</dt><dd>${p.ds.death?'Died day '+p.ds.death:'Alive at day '+p.fu}</dd>
+  <dt>Adverse events</dt><dd>${p.nAE} total · ${p.ae.filter(a=>a.g>=3).length} grade ≥3 · ${p.ae.filter(a=>a.ir).length} immune</dd></dl>
+  <ul class="evlist">${ev.map(e=>`<li><span class="day">D${e[0]}</span><span style="color:${e[2]}">●</span><span>${e[1]}</span></li>`).join('')||'<li>No grade ≥3 events or signals.</li>'}</ul>
+  <button class="btn" id="zPat" type="button">Zoom into this patient</button>`;
+  $('zPat').onclick=()=>{if(ST.view!=='2d')setView('2d');zoomPatient(p)}}
+function zoomPatient(p){ST.peel=true;$('peel').checked=true;draw();const ppd=Math.max(3.1,(W-LW-30)/(p.ds.last+40));anim({ppd,x0:-15,row:ROWS.indexOf(p)})}
+const SEVR={crit:0,warn:1,info:2};
+function renderSignals(){const vis=new Set(ROWS);SIGV=ALLSIG.filter(s=>vis.has(s.p)).sort((a,b)=>SEVR[a.sev]-SEVR[b.sev]||a.p.i-b.p.i);
+  const nc=SIGV.filter(s=>s.sev!=='info').length;$('sigN').textContent=`${nc} to review · ${SIGV.length-nc} notes`;
+  $('sigList').innerHTML=SIGV.map((s,k)=>`<li data-k="${k}" tabindex="0"><span class="sv" style="background:${sevC(s.sev)}"></span><div><div class="t">${s.title}</div><div class="d">${s.detail}</div><div class="id">${s.p.id} · day ${s.day}</div></div></li>`).join('')||'<li><span></span><div class="d">No signals in this subset.</div></li>';
+  markSig()}
+function markSig(){[...$('sigList').children].forEach(li=>{const s=SIGV[+li.dataset.k];li.classList.toggle('on',!!s&&s.p===ST.sel)})}
+function focusSignal(s){if(ST.view!=='2d')setView('2d');ST.focus=s;ST.sel=s.p;renderCard();markSig();const ppd=Math.max(ST.ppd,3.4);anim({ppd,x0:s.day-(W-LW)/2/ppd,row:ROWS.indexOf(s.p)})}
+$('sigList').addEventListener('click',e=>{const li=e.target.closest('li[data-k]');if(li)focusSignal(SIGV[+li.dataset.k])});
+$('sigList').addEventListener('keydown',e=>{if(e.key==='Enter'){const li=e.target.closest('li[data-k]');if(li)focusSignal(SIGV[+li.dataset.k])}});
+function renderLegend(){const sw=(st,t)=>`<span><i style="${st}"></i>${t}</span>`;
+  $('legend').innerHTML=[sw('width:16px;height:6px;background:var(--accent);opacity:.6','Pembrolizumab + chemo, on treatment'),
+    sw('width:16px;height:6px;background:var(--pbo);opacity:.6','Placebo + chemo'),sw('width:2px;height:12px;background:var(--c-ex)','Dose (21-day cycle)'),
+    `<span>AE grade 1–5 ${[1,2,3,4,5].map(g=>`<i title="Grade ${g}" style="width:11px;height:8px;background:var(--g${g})"></i>`).join('')}</span>`,
+    sw('width:14px;height:7px;border:1px solid var(--ink)','Outlined AE = immune-related'),
+    sw('width:8px;height:8px;border-radius:50%;background:var(--c-lb)','Lab above upper limit of normal (ULN)'),
+    sw('width:8px;height:8px;border-radius:50%;background:var(--c-tr)','Tumor scan (RECIST response)'),
+    '<span><b style="color:var(--crit)">◆</b> progression · ✕ death · | alive at data cut · <b style="color:var(--accent)">▶</b> crossover</span>',
+    '<span>TPS = PD-L1 tumor proportion score</span>'].join('')}
+
+// ---- controls ----
+function refresh(){ROWS=filterRows();renderSignals();renderCard();if(ST.view==='2d')draw();else if(T3.lib)T3.build()}
+$('layerChips').innerHTML=DOM.map(d=>`<button type="button" class="chip on" data-k="${d.k}" style="--dc:var(${d.v})" aria-pressed="true" title="${d.name}"><i></i>${d.k} <span style="font-family:var(--f-body);font-weight:500">${d.name}</span></button>`).join('');
+$('layerChips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;const k=b.dataset.k;
+  if(ST.layers.has(k)){if(ST.layers.size===1)return;ST.layers.delete(k)}else ST.layers.add(k);
+  b.classList.toggle('on',ST.layers.has(k));b.setAttribute('aria-pressed',ST.layers.has(k));if(ST.view==='2d')draw();else T3.build()});
+$('peel').addEventListener('change',e=>{ST.peel=e.target.checked;draw()});
+[['fArm','arm'],['fTps','tps'],['fShow','show'],['fSort','sort'],['fLab','lab']].forEach(([id,k])=>$(id).addEventListener('change',e=>{ST[k]=e.target.value;refresh()}));
+function setView(v){ST.view=v;['v2d','v3d'].forEach(id=>{const on=id==='v'+v;$(id).classList.toggle('on',on);$(id).setAttribute('aria-selected',on)});
+  cv.hidden=v!=='2d';$('zoombar').hidden=v!=='2d';['three','lbl3d','xrnote','spreadBox'].forEach(id=>$(id).hidden=v!=='3d');
+  $('peel').closest('label').style.visibility=v==='2d'?'':'hidden';$('tip').hidden=true;
+  $('hint').textContent=v==='2d'?'Pinch or Ctrl + scroll to zoom time · scroll to move through patients · drag to pan · hover for detail · double-click to zoom in':
+    'Each domain is a horizontal layer, each patient a line across all layers. Red pillars mark progression and cut through every layer.';
+  if(v==='3d')T3.load(()=>{if(!T3.lib)T3.init();T3.size();T3.build()});else{resize();draw()}}
+$('v2d').onclick=()=>setView('2d');$('v3d').onclick=()=>setView('3d');
+$('spread').addEventListener('input',e=>{T3.gapT=e.target.value/100;T3.req&&T3.req()});
+
+// ---- 3D layers (three.js, loaded on demand) ----
+const T3={lib:false,gap:.55,gapT:.55,
+  load(cb){if(window.THREE){cb();return}const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+    s.onload=cb;s.onerror=()=>{$('xrnote').textContent='The 3D library could not load. The 2D lanes still work.'};document.head.appendChild(s)},
+  init(){this.r=new THREE.WebGLRenderer({antialias:true});this.r.setPixelRatio(Math.min(2,devicePixelRatio));$('three').appendChild(this.r.domElement);
+    this.sc=new THREE.Scene();this.cam=new THREE.PerspectiveCamera(38,1,.1,600);
+    this.sc.add(new THREE.AmbientLight(0xffffff,.72));const dl=new THREE.DirectionalLight(0xffffff,.55);dl.position.set(10,30,20);this.sc.add(dl);
+    this.orb={th:-.8,ph:1.0,r:52};this.ray=new THREE.Raycaster();this.ptr=new THREE.Vector2();this.tgt=new THREE.Vector3();this.lib=true;this.bind()},
+  size(){if(!this.r)return;const el=$('vp');this.r.setSize(el.clientWidth,el.clientHeight,false);this.r.domElement.style.width='100%';this.r.domElement.style.height='100%';
+    this.cam.aspect=el.clientWidth/Math.max(1,el.clientHeight);this.cam.updateProjectionMatrix();this.req()},
+  req(){if(!this.lib||this.raf)return;this.raf=requestAnimationFrame(()=>{this.raf=0;this.frame()})},
+  frame(){const d=this.gapT-this.gap;if(Math.abs(d)>.002){this.gap+=d*.18;this.req()}else this.gap=this.gapT;
+    this.applyGap();const o=this.orb,t=this.tgt;
+    this.cam.position.set(t.x+o.r*Math.sin(o.ph)*Math.sin(o.th),t.y+o.r*Math.cos(o.ph),t.z+o.r*Math.sin(o.ph)*Math.cos(o.th));
+    this.cam.lookAt(t);this.r.render(this.sc,this.cam);this.labels()},
+  applyGap(){if(!this.groups)return;const G=.3+this.gap*7,n=this.groups.length,top=Math.max(.6,(n-1)*G+.8);
+    this.groups.forEach((g,j)=>g.position.y=j*G);this.pil.forEach(l=>l.scale.y=top);this.tgt.y=(n-1)*G/2;
+    this.selM.scale.y=top+.3;this.selM.position.y=top/2-.15},
+  build(){if(!this.lib)return;readColors();const c=s=>new THREE.Color(s);
+    if(this.root){this.sc.remove(this.root);this.root.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose()})}
+    this.root=new THREE.Group();this.sc.add(this.root);this.r.setClearColor(c(COL.panel));
+    const XS=1.2/30.44,ZS=.62,xp=d=>d*XS,zp=i=>i*ZS;this.XS=XS;this.ZS=ZS;
+    const sx=maxDay()*XS,sz=Math.max(1,ROWS.length)*ZS;this.tgt.set(sx/2,0,sz/2);
+    this.act=DOM.filter(d=>ST.layers.has(d.k));this.groups=[];this.picks=[];
+    const box=new THREE.BoxGeometry(1,1,1),sph=new THREE.SphereGeometry(1,12,8),oct=new THREE.OctahedronGeometry(1);
+    this.act.forEach(dm=>{const g=new THREE.Group();this.root.add(g);this.groups.push(g);const dc=COL[dm.v.slice(2)];
+      const pl=new THREE.Mesh(new THREE.PlaneGeometry(sx+2,sz+1),new THREE.MeshBasicMaterial({color:c(dc),transparent:true,opacity:.08,side:THREE.DoubleSide,depthWrite:false}));
+      pl.rotation.x=-Math.PI/2;pl.position.set(sx/2,-.02,sz/2-ZS/2);g.add(pl);
+      const pos=[];ROWS.forEach((p,i)=>pos.push(xp(1),0,zp(i),xp(p.ds.last),0,zp(i)));
+      const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(pos.length?pos:[0,0,0,0,0,0],3));
+      g.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:c(COL.muted),transparent:true,opacity:.4})));
+      const it=[];
+      ROWS.forEach((p,i)=>{const z=zp(i);
+        if(dm.k==='EX')p.ex.forEach(e=>{if(e.drug==='Placebo'||e.drug==='Pembrolizumab')it.push({x:xp(e.d),y:.12,z,s:[.05,.24,.34],col:e.xo?COL.accent:COL['c-ex'],p,tip:`<b>Cycle ${e.c}</b> · Day ${e.d}<br>${e.drug} ${e.dose}`})});
+        if(dm.k==='AE')p.ae.forEach(a=>{const r=.07+.035*a.g;it.push({x:xp(a.s),y:r,z,s:[r,r,r],col:gc(a.g),p,tip:aeTip(a),k:'sph'})});
+        if(dm.k==='LB')p.lb.filter(l=>l.t===ST.lab&&l.f).forEach(l=>{const h=Math.min(3,Math.abs(Math.log2(l.x))+.3)*.5;it.push({x:xp(l.d),y:h/2,z,s:[.12,h,.12],col:COL['c-lb'],p,tip:labTip(l,p)})});
+        if(dm.k==='TR')p.tr.forEach(t=>{it.push({x:xp(t.d),y:.12+Math.max(0,-t.pct)/100*1.6,z,s:[.14,.14,.14],col:t.resp==='BL'?COL.muted:RC(t.resp),p,tip:`<b>${RESP[t.resp]}</b> · Day ${t.d} · ${t.pct>0?'+':''}${t.pct}% vs baseline`,k:'oct'})});
+        if(dm.k==='CM')p.cm.filter(m=>!m.bg).forEach(m=>{const w=Math.max(.1,(m.e-m.s)*XS);it.push({x:xp(m.s)+w/2,y:.05,z,s:[w,.08,.2],col:COL['c-cm'],p,tip:cmTip(m)})});
+      });
+      for(const kind of ['box','sph','oct']){const its=it.filter(q=>(q.k||'box')===kind);if(!its.length)continue;
+        const m=new THREE.InstancedMesh(kind==='sph'?sph:kind==='oct'?oct:box,new THREE.MeshLambertMaterial({color:0xffffff}),its.length);
+        const o=new THREE.Object3D();its.forEach((q,k)=>{o.position.set(q.x,q.y,q.z);o.scale.set(...q.s);o.updateMatrix();m.setMatrixAt(k,o.matrix);m.setColorAt(k,c(q.col))});
+        m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;m.frustumCulled=false;m.userData.items=its;g.add(m);this.picks.push(m)}
+    });
+    const pp=[],dp=[];ROWS.forEach((p,i)=>{if(p.ds.pd)pp.push(xp(p.ds.pd),0,zp(i),xp(p.ds.pd),1,zp(i));if(p.ds.death)dp.push(xp(p.ds.death),0,zp(i),xp(p.ds.death),1,zp(i))});
+    const mk=(a,col,op)=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(a.length?a:[0,0,0,0,0,0],3));
+      const l=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:c(col),transparent:true,opacity:op}));l.frustumCulled=false;this.root.add(l);return l};
+    this.pil=[mk(pp,COL.crit,.85),mk(dp,COL.ink,.5)];
+    this.selM=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshBasicMaterial({color:c(COL.accent),transparent:true,opacity:.16,depthWrite:false}));this.root.add(this.selM);
+    $('lbl3d').innerHTML=this.act.map(d=>`<span style="color:var(${d.v});border-color:var(${d.v})">${d.name}</span>`).join('');
+    this.highlight()},
+  highlight(){if(!this.selM)return;const i=ROWS.indexOf(ST.sel);this.selM.visible=i>=0;
+    if(i>=0){const x0=this.XS,x1=ST.sel.ds.last*this.XS;this.selM.scale.set(x1-x0+.6,1,this.ZS*.9);this.selM.position.x=(x0+x1)/2;this.selM.position.z=i*this.ZS}this.req()},
+  labels(){const ls=$('lbl3d').children,w=this.r.domElement.clientWidth,h=this.r.domElement.clientHeight;
+    this.groups.forEach((g,j)=>{const s=ls[j];if(!s)return;const v=new THREE.Vector3(-.4,g.position.y,-.3).project(this.cam);
+      s.style.left=Math.max(90,(v.x+1)/2*w)+'px';s.style.top=((1-v.y)/2*h)+'px';s.hidden=v.z>1})},
+  pick(e){const rc=this.r.domElement.getBoundingClientRect();this.ptr.set((e.clientX-rc.left)/rc.width*2-1,-(e.clientY-rc.top)/rc.height*2+1);
+    this.ray.setFromCamera(this.ptr,this.cam);const hs=this.ray.intersectObjects(this.picks,false);return hs.length?hs[0].object.userData.items[hs[0].instanceId]:null},
+  bind(){const el=this.r.domElement,pts=new Map();let last=null,pin=null,mv=false;
+    el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);pts.set(e.pointerId,[e.clientX,e.clientY]);mv=false;last=[e.clientX,e.clientY];
+      if(pts.size===2){const[a,b]=[...pts.values()];pin={d:Math.hypot(a[0]-b[0],a[1]-b[1])||1,r:this.orb.r}}});
+    el.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId)){const q=this.pick(e),rc=$('vp').getBoundingClientRect();
+        showTip(q?{html:`${q.p.id} · ${q.tip}`}:null,e.clientX-rc.left,e.clientY-rc.top);return}
+      pts.set(e.pointerId,[e.clientX,e.clientY]);$('tip').hidden=true;
+      if(pin&&pts.size===2){const[a,b]=[...pts.values()];this.orb.r=Math.min(160,Math.max(6,pin.r*pin.d/Math.max(10,Math.hypot(a[0]-b[0],a[1]-b[1]))));mv=true;this.req();return}
+      const dx=e.clientX-last[0],dy=e.clientY-last[1];if(Math.abs(dx)+Math.abs(dy)>2)mv=true;last=[e.clientX,e.clientY];
+      this.orb.th-=dx*.006;this.orb.ph=Math.min(1.52,Math.max(.1,this.orb.ph-dy*.006));this.req()});
+    const up=e=>{pts.delete(e.pointerId);if(pts.size<2)pin=null;if(!mv&&e.type==='pointerup'){const q=this.pick(e);if(q)select(q.p)}};
+    el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);el.addEventListener('pointerleave',()=>{$('tip').hidden=true});
+    el.addEventListener('wheel',e=>{e.preventDefault();this.orb.r=Math.min(160,Math.max(6,this.orb.r*Math.exp(e.deltaY*(e.deltaMode===1?16:1)*.0012)));this.req()},{passive:false})}
+};
+
+// ---- boot ----
+function onTheme(){readColors();renderCard();renderSignals();draw();if(T3.lib&&ST.view==='3d')T3.build()}
+readColors();resize();ROWS=filterRows();ST.ppd=fitPPD();ST.x0=-20;
+ST.sel=(ALLSIG.find(s=>s.sev==='crit')||ALLSIG[0]||{p:PTS[0]}).p;
+renderSignals();renderCard();renderLegend();draw();
+if(document.fonts)document.fonts.ready.then(()=>draw());
+new ResizeObserver(()=>{if(ST.view==='2d'){const fit=ST.ppd<=fitPPD()*1.01;resize();if(fit)ST.ppd=fitPPD();draw()}else T3.size()}).observe($('vp'));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',onTheme);
+new MutationObserver(onTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+</script>
+
+</body></html>

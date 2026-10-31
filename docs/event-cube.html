@@ -1,0 +1,993 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}</style></head><body>
+<title>KN189 Event Cube</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: instrument-panel workspace — controls strip, big timeline canvas, signals rail on the right */
+:root{
+  --bg:#eef1f3; --panel:#ffffff; --ink:#15202b; --muted:#566370; --line:#d3d9de; --grid:#e3e8ec; --soft:#f6f8f9;
+  --accent:#0d6b8a; --pbo:#8b97a3;
+  --c-ex:#1f7fa6; --c-ae:#cf442e; --c-lb:#7558c2; --c-tr:#2b8653; --c-cm:#b98110; --c-ds:#15202b;
+  --g1:#e9b44c; --g2:#e27f36; --g3:#cf442e; --g4:#931d2c; --g5:#3a0c15;
+  --ok:#2b8653; --warn:#b98110; --crit:#cf442e;
+  --f-disp:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0d1318; --panel:#141c23; --ink:#e3eaef; --muted:#93a2ae; --line:#26323c; --grid:#1b252e; --soft:#11181e;
+  --accent:#43aed0; --pbo:#6d7a86;
+  --c-ex:#4aaad2; --c-ae:#ef6b53; --c-lb:#a68df0; --c-tr:#52c17f; --c-cm:#e3ad3c; --c-ds:#e3eaef;
+  --g1:#e9c063; --g2:#ec9450; --g3:#ef6b53; --g4:#e0405a; --g5:#ff9fb0;
+  --ok:#52c17f; --warn:#e3ad3c; --crit:#ef6b53; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1318; --panel:#141c23; --ink:#e3eaef; --muted:#93a2ae; --line:#26323c; --grid:#1b252e; --soft:#11181e;
+  --accent:#43aed0; --pbo:#6d7a86;
+  --c-ex:#4aaad2; --c-ae:#ef6b53; --c-lb:#a68df0; --c-tr:#52c17f; --c-cm:#e3ad3c; --c-ds:#e3eaef;
+  --g1:#e9c063; --g2:#ec9450; --g3:#ef6b53; --g4:#e0405a; --g5:#ff9fb0;
+  --ok:#52c17f; --warn:#e3ad3c; --crit:#ef6b53; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+.app{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 18px;display:flex;flex-direction:column;gap:12px;max-width:1500px;margin:0 auto}
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--f-disp);font-weight:700;font-size:30px;letter-spacing:.01em;margin:0;line-height:1;text-wrap:balance}
+.sub{margin:4px 0 0;color:var(--muted);font-size:13px;max-width:70ch}
+.sub b{color:var(--crit);font-weight:600}
+.views{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.tab{font:600 13px/1 var(--f-body);padding:9px 14px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.tab.on{background:var(--ink);color:var(--bg)}
+.tab:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.controls{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.grp{display:flex;flex-direction:column;gap:4px;min-width:0}
+.lbl{font:600 10.5px/1 var(--f-body);text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+select{font:500 13px var(--f-body);color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:5px 8px;max-width:100%}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{display:inline-flex;align-items:center;gap:6px;font:600 12px/1 var(--f-mono);padding:6px 9px;border-radius:999px;border:1px solid var(--line);background:var(--soft);color:var(--muted);cursor:pointer}
+.chip i{width:9px;height:9px;border-radius:2px;background:var(--dc);opacity:.35}
+.chip.on{color:var(--ink);border-color:var(--dc)}
+.chip.on i{opacity:1}
+.switch{display:inline-flex;align-items:center;gap:8px;font:600 13px var(--f-body);cursor:pointer;padding-bottom:4px}
+.switch input{width:16px;height:16px;accent-color:var(--accent)}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:12px}
+.viewport{position:relative;height:clamp(460px,calc(100vh - 250px),900px);background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;touch-action:none;min-width:0}
+#cv{display:block;width:100%;height:100%;cursor:grab}
+#cv.drag{cursor:grabbing}
+#three{position:absolute;inset:0}
+#three canvas{display:block;width:100%;height:100%;cursor:grab}
+.zoombar{position:absolute;right:10px;bottom:10px;display:flex;align-items:center;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.zoombar button{font:600 15px/1 var(--f-body);min-width:30px;height:28px;border:0;border-radius:4px;background:transparent;color:var(--ink);cursor:pointer}
+.zoombar button:hover{background:var(--soft)}
+#zFit{font-size:12px}
+#zLvl{font:500 11px var(--f-mono);color:var(--muted);min-width:64px;text-align:center}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font:12px/1.4 var(--f-body);padding:6px 8px;border-radius:5px;max-width:260px;z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.tip b{font-family:var(--f-mono);font-weight:500}
+#lbl3d{position:absolute;inset:0;pointer-events:none}
+#lbl3d span{position:absolute;font:600 11px var(--f-mono);padding:2px 6px;border-radius:3px;background:var(--panel);border:1px solid var(--line);transform:translate(-100%,-50%);white-space:nowrap}
+.spread{position:absolute;left:10px;bottom:10px;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:600 12px var(--f-body)}
+.spread input{width:140px;accent-color:var(--accent)}
+.xrnote{position:absolute;right:10px;top:10px;max-width:300px;font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+.side{display:flex;flex-direction:column;gap:12px;min-width:0;max-height:clamp(460px,calc(100vh - 250px),900px)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:0}
+.card h2{font-family:var(--f-disp);font-weight:700;font-size:18px;letter-spacing:.02em;margin:0 0 8px;display:flex;justify-content:space-between;align-items:baseline}
+.card h2 span{font:500 12px var(--f-mono);color:var(--muted)}
+.sigcard{flex:1;display:flex;flex-direction:column;min-height:180px}
+#sigList{list-style:none;margin:0;padding:0;overflow:auto;display:flex;flex-direction:column;gap:6px;flex:1}
+#sigList li{display:grid;grid-template-columns:4px 1fr;gap:9px;padding:7px 8px;border-radius:5px;background:var(--soft);cursor:pointer;border:1px solid transparent}
+#sigList li:hover,#sigList li.on{border-color:var(--line)}
+#sigList li .sv{border-radius:2px}
+#sigList li .t{font:600 13px var(--f-body)}
+#sigList li .d{font-size:12px;color:var(--muted)}
+#sigList li .id{font:500 11px var(--f-mono);color:var(--muted)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13px;margin:0}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums}
+.pid{font:500 15px var(--f-mono);margin:0 0 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.arm{font:600 11px var(--f-body);padding:2px 7px;border-radius:999px;color:#fff}
+.empty{color:var(--muted);font-size:13px;margin:0}
+.evlist{margin:8px 0 0;padding:0;list-style:none;font-size:12px;display:flex;flex-direction:column;gap:2px;max-height:130px;overflow:auto}
+.evlist li{display:flex;gap:8px}
+.evlist .day{font-family:var(--f-mono);color:var(--muted);min-width:46px;text-align:right}
+.btn{font:600 12px var(--f-body);border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:5px;padding:6px 10px;cursor:pointer;margin-top:8px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{display:inline-block}
+.hint{margin:0;font-size:12px;color:var(--muted)}
+@media (max-width:900px){
+  .stage{grid-template-columns:minmax(0,1fr)}
+  .viewport{height:520px}
+  .side{max-height:none}
+  .sigcard{max-height:360px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<style>
+/* Cube workspace: lens bar (collapse + align) on top, filters below, canvas left, agent rail right */
+.top{align-items:flex-start}
+.lens{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;width:100%}
+.cube{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;min-width:0}
+.cb{display:flex;align-items:center;gap:9px;text-align:left;padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:var(--soft);color:var(--ink);cursor:pointer;font:inherit;min-width:0}
+.cb svg{flex:none;width:32px;height:32px;color:var(--muted)}
+.cb b{display:block;font:600 13px/1.15 var(--f-body)}
+.cb small{display:block;font-size:11px;color:var(--muted);line-height:1.25}
+.cb.on{border-color:var(--ink);background:var(--panel);box-shadow:inset 0 0 0 1px var(--ink)}
+.cb.on svg{color:var(--accent)}
+.anchorinfo{font:500 12px var(--f-mono);color:var(--muted);padding-bottom:6px}
+.viewport{height:clamp(480px,calc(100vh - 300px),920px)}
+.stage{grid-template-columns:minmax(0,1fr) 380px}
+.side{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;gap:0;max-height:none;height:clamp(480px,calc(100vh - 300px),920px)}
+.tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
+.tabs button{flex:1;font:600 13px var(--f-body);padding:10px 8px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);cursor:pointer}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.tabs span{font:500 11px var(--f-mono);color:var(--crit)}
+.pane{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 14px;overflow:auto}
+.pane.card{border:0;border-radius:0;display:block}
+.pane h2{font-family:var(--f-disp);font-weight:700;font-size:18px;letter-spacing:.02em;margin:0 0 8px;display:flex;justify-content:space-between;align-items:baseline}
+.pane h2 span{font:500 12px var(--f-mono);color:var(--muted)}
+.chat{flex:1;min-height:120px;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-right:2px}
+.msg{font-size:13.5px;line-height:1.5;overflow-wrap:anywhere;min-width:0}
+.msg p{margin:0 0 6px}.msg p:last-child{margin:0}
+.msg ul{margin:4px 0 6px;padding-left:18px}
+.msg.u{align-self:flex-end;background:var(--ink);color:var(--bg);padding:7px 11px;border-radius:12px 12px 3px 12px;max-width:88%}
+.msg.a{align-self:stretch}
+.msg.a .who{font:600 10.5px var(--f-body);text-transform:uppercase;letter-spacing:.09em;color:var(--accent);margin-bottom:3px}
+.msg.err{color:var(--crit)}
+.step{font:11px/1.45 var(--f-mono);color:var(--muted);border-left:2px solid var(--c-lb);padding:1px 0 1px 8px;margin:2px 0}
+.sugs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 8px;flex:none}
+.sug{font:500 12px/1.3 var(--f-body);padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:var(--soft);color:var(--ink);cursor:pointer;text-align:left}
+.sug:hover{border-color:var(--ink)}
+#askF{flex:none}
+#ask{width:100%;box-sizing:border-box;font:14px/1.4 var(--f-body);color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:8px 10px;resize:vertical;min-height:46px}
+.arow{display:flex;gap:6px;justify-content:flex-end;align-items:center;margin-top:6px}
+.arow label{margin-right:auto;font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.primary{font:600 13px var(--f-body);background:var(--ink);color:var(--bg);border:0;border-radius:6px;padding:8px 16px;cursor:pointer}
+.primary:disabled{opacity:.5;cursor:default}
+.agentnote{font-size:11.5px;color:var(--muted);margin:6px 0 0;flex:none}
+#pSig #sigList{flex:1}
+@media (max-width:900px){.stage{grid-template-columns:minmax(0,1fr)}.viewport{height:540px}.side{height:600px}}
+@media (max-width:760px){.cube{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+<div class="app">
+  <header class="top">
+    <div>
+      <h1>KN189 Event Cube</h1>
+      <p class="sub">Patient × domain × time from a hypothetical KEYNOTE-189-style raw dataset: 60 patients, pembrolizumab or placebo + pemetrexed + platinum. Collapse any one dimension, or re-align time on an event. <b>Synthetic, not real trial data.</b></p>
+    </div>
+  </header>
+  <section class="controls" aria-label="Cube">
+    <div class="lens">
+      <div class="grp" style="flex:1 1 600px;min-width:0"><span class="lbl">Cube: collapse one dimension</span><div class="cube" id="cube" role="radiogroup" aria-label="Cube view"></div></div>
+      <div class="grp"><label class="lbl" for="fAlign">Align time on</label>
+        <select id="fAlign"><option value="rand">Randomization (Day 1)</option><option value="g3">First grade ≥3 AE</option><option value="ir">First immune-related AE</option><option value="term">First AE of a chosen term</option><option value="cpr">Confirmed partial response</option><option value="pd">Progression</option><option value="xo">Crossover</option></select></div>
+      <div class="grp" id="termBox" hidden><label class="lbl" for="fTerm">AE of interest</label><select id="fTerm"></select></div>
+      <div class="anchorinfo" id="anchorInfo"></div>
+    </div>
+  </section>
+  <section class="controls" aria-label="Filters">
+    <div class="grp"><span class="lbl">Domain layers</span><div class="chips" id="layerChips"></div></div>
+    <div class="grp"><label class="lbl" for="fArm">Arm</label>
+      <select id="fArm"><option value="all">Both arms</option><option value="P">Pembro + chemo</option><option value="B">Placebo + chemo</option></select></div>
+    <div class="grp"><label class="lbl" for="fTps">PD-L1 TPS</label>
+      <select id="fTps"><option value="all">All</option><option value="0">&lt;1%</option><option value="1">1–49%</option><option value="2">≥50%</option></select></div>
+    <div class="grp"><label class="lbl" for="fShow">Subset</label>
+      <select id="fShow"><option value="all">All patients</option><option value="g3">Any grade ≥3 AE</option><option value="ir">Immune-related AE</option><option value="sig">Has a signal</option><option value="xo">Crossed over</option><option value="pd">Progressed</option><option value="pick" hidden>Selection</option></select></div>
+    <div class="grp"><label class="lbl" for="fSort">Sort by</label>
+      <select id="fSort"><option value="id">Patient ID</option><option value="pfs">Time to PD / censor</option><option value="trt">Time on treatment</option><option value="ae">Number of AEs</option><option value="alt">Peak ALT ×ULN</option><option value="tps">PD-L1 TPS</option><option value="shr">Best tumor shrinkage</option><option value="anc">Anchor day</option></select></div>
+    <div class="grp"><label class="lbl" for="fLab">Lab lens</label>
+      <select id="fLab"><option>ALT</option><option>AST</option><option>BILI</option><option>CREAT</option><option>TSH</option><option>ANC</option></select></div>
+  </section>
+  <main class="stage">
+    <div class="viewport" id="vp">
+      <canvas id="cv" aria-label="Event cube view"></canvas>
+      <div class="zoombar" id="zoombar"><button id="zOut" aria-label="Zoom out">−</button><span id="zLvl">Overview</span><button id="zIn" aria-label="Zoom in">+</button><button id="zFit">Fit</button></div>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+    <aside class="side">
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" class="on" data-t="pAgent" aria-selected="true">Agent</button>
+        <button type="button" role="tab" data-t="pcard" aria-selected="false">Patient</button>
+        <button type="button" role="tab" data-t="pSig" aria-selected="false">Signals <span id="sigN"></span></button>
+      </div>
+      <section class="pane" id="pAgent" role="tabpanel">
+        <div class="chat" id="chat" aria-live="polite"></div>
+        <div class="sugs" id="sugs"></div>
+        <form id="askF">
+          <textarea id="ask" rows="2" placeholder="Ask about the data, or say what to show…"></textarea>
+          <div class="arow"><label for="tier">Depth <select id="tier"><option value="quick">Fast</option><option value="default">Thorough</option></select></label>
+            <button type="button" class="btn" id="stop" hidden style="margin:0">Stop</button><button type="submit" class="primary" id="send">Ask</button></div>
+        </form>
+        <p class="agentnote" id="agentNote">The agent answers with your own Claude account and can change this view. Without it, simple view commands still work.</p>
+      </section>
+      <section class="pane card" id="pcard" role="tabpanel" hidden></section>
+      <section class="pane" id="pSig" role="tabpanel" hidden><ol id="sigList"></ol></section>
+    </aside>
+  </main>
+  <footer class="legend" id="legend"></footer>
+  <p class="hint" id="hint"></p>
+</div>
+<script>
+// ---------- Synthetic raw data (seeded, reproducible) ----------
+const CUTOFF = 760;            // global data-cut day since first enrollment
+const DOM = [
+  {k:'EX', name:'Exposure', v:'--c-ex'},
+  {k:'AE', name:'Adverse events', v:'--c-ae'},
+  {k:'LB', name:'Labs', v:'--c-lb'},
+  {k:'TR', name:'Tumor response', v:'--c-tr'},
+  {k:'CM', name:'Con meds', v:'--c-cm'}
+];
+const LABS = {ALT:{uln:40,lln:7,u:'U/L'},AST:{uln:40,lln:10,u:'U/L'},BILI:{uln:1.2,lln:0.2,u:'mg/dL'},
+  CREAT:{uln:1.2,lln:0.6,u:'mg/dL'},TSH:{uln:4.5,lln:0.4,u:'mIU/L'},ANC:{uln:7.5,lln:1.5,u:'10^9/L'}};
+
+function rngFrom(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const R = rngFrom(189);
+const U = (a,b)=>a+(b-a)*R();
+const UI = (a,b)=>Math.floor(U(a,b+1));
+const pick = a=>a[Math.floor(R()*a.length)];
+const expo = med=>-Math.log(1-R())*med/Math.LN2;
+const norm = ()=>{let u=0,v=0;while(!u)u=R();while(!v)v=R();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)};
+
+const CHEMO_AE = [
+  ['Nausea','GI',.55,.04],['Fatigue','General',.45,.06],['Anaemia','Blood',.45,.15],['Neutropenia','Blood',.35,.3],
+  ['Constipation','GI',.3,.01],['Decreased appetite','Metab',.28,.02],['Diarrhoea','GI',.25,.05],['Vomiting','GI',.22,.03],
+  ['Rash','Skin',.18,.02],['Pyrexia','General',.17,.01],['Thrombocytopenia','Blood',.17,.08],['Dyspnoea','Resp',.17,.04],
+  ['Peripheral oedema','General',.15,.0],['Cough','Resp',.15,.0]];
+const IR_AE = [['Hypothyroidism','Endocrine',.07,0],['Pneumonitis','Resp',.05,.45],['Hyperthyroidism','Endocrine',.04,0],
+  ['Colitis','GI',.025,.5],['Hepatitis','Hepatobiliary',.02,.7],['Acute kidney injury','Renal',.04,.4],['Severe skin reaction','Skin',.02,.6]];
+
+function makePatient(i){
+  const arm = R()<2/3?'P':'B';
+  const tg = R()<.31?0:(R()<.47?1:2);
+  const tps = tg===0?0:tg===1?UI(1,49):UI(50,100);
+  const enr = Math.round(U(0,300));
+  const fu = CUTOFF-enr;
+  const sex = R()<.6?'M':'F', age = Math.round(Math.min(84,Math.max(34,64+norm()*9)));
+  const plat = R()<.72?'Carboplatin':'Cisplatin';
+  const ecog = R()<.45?0:1;
+  const id = `189-${String(100+UI(1,9)*10+UI(0,9))}-${String(i+1).padStart(4,'0')}`;
+  // hidden timelines
+  let pfsMed = arm==='P'? (tg===2?380:tg===1?260:200) : 150;
+  const pfs = Math.max(30,expo(pfsMed));
+  const os = pfs + expo(arm==='P'?260:200);
+  const p = {i,id,arm,tps,tg,sex,age,plat,ecog,enr,fu,ex:[],ae:[],lb:[],tr:[],cm:[],ds:{},sig:[]};
+  // tumor scans: wk6,12,18 then q9w
+  const scans=[]; for(let d=43; d<=fu; d+= d<127?42:63) scans.push(d);
+  const base = Math.round(U(35,130));
+  const depth = arm==='P'? Math.min(.98,Math.max(0,U(-.05,.75)+(tg===2?.12:0))) : Math.max(0,U(-.1,.55));
+  p.tr.push({d:-10,sld:base,pct:0,resp:'BL'});
+  let nadir=base, pd=null;
+  for(const d of scans){
+    if(d>os) break;
+    let sld;
+    if(d<pfs){ sld = base*(1-depth*Math.min(1,d/130)) + norm()*2; }
+    else { sld = Math.max(nadir*1.28, nadir+6) + norm()*2; }
+    sld=Math.max(0,Math.round(sld)); nadir=Math.min(nadir,sld);
+    const pct = Math.round((sld-base)/base*100);
+    let resp = pct<=-30?'PR':'SD'; if(sld<=2){resp='CR'}
+    if(!pd && d>=pfs){resp='PD'; pd=d;}
+    else if(pd) resp = 'PD';
+    p.tr.push({d,sld,pct,resp});
+    if(pd && p.tr.filter(t=>t.resp==='PD').length>=2) break;
+  }
+  const death = os<=fu? Math.round(os): null;
+  // treatment end
+  let tbp = pd && arm==='P' && R()<.14 ? UI(2,4):0;            // treatment beyond progression
+  let aeStop = R()<.12 ? Math.round(U(60,400)) : null;          // discontinuation for toxicity
+  let eot = Math.min(fu, death??1e9, pd?pd+tbp*21:1e9, aeStop??1e9, 35*21);
+  // dosing q3w
+  let d=1, c=1, lastDose=1;
+  while(d<=eot){
+    const ind = c<=4;
+    p.ex.push({d,c,drug:arm==='P'?'Pembrolizumab':'Placebo',dose:arm==='P'?'200 mg':'0 mg',ind});
+    if(c<=35) p.ex.push({d,c,drug:'Pemetrexed',dose:'500 mg/m²',ind});
+    if(ind) p.ex.push({d,c,drug:plat,dose:plat==='Carboplatin'?'AUC 5':'75 mg/m²',ind});
+    lastDose=d; c++;
+    d += 21 + (R()<.12?7:0) + (R()<.03?14:0);
+  }
+  // placebo crossover to pembro monotherapy after PD
+  let xo=null;
+  if(arm==='B' && pd && R()<.55 && (!death || death-pd>50)){
+    xo = pd+UI(21,40); let d2=xo, cc=1;
+    const xend = Math.min(fu, death??1e9, xo+expo(160));
+    while(d2<=xend){p.ex.push({d:d2,c:cc++,drug:'Pembrolizumab',dose:'200 mg',xo:true}); d2+=21;}
+  }
+  const ioOn = arm==='P' || xo;
+  const lastEx = Math.max(...p.ex.map(e=>e.d));
+  // AEs
+  const span = Math.max(30,lastEx+30);
+  for(const [term,soc,rate,g3] of CHEMO_AE){
+    if(R()<rate*(eot>60?1:.6)){
+      const s=Math.round(U(2,Math.min(span,eot+21))); const g = R()<g3? (R()<.15?4:3) : (R()<.6?1:2);
+      p.ae.push({s,e:s+UI(3,g>=3?28:20),term,soc,g,ir:false,ser:g>=3&&R()<.5});
+    }
+  }
+  if(ioOn){
+    const st = xo||1;
+    for(const [term,soc,rate,g3] of IR_AE){
+      if(R()<rate*2.2){
+        const s=Math.round(st+U(30,Math.max(60,lastEx-st+20))); const g = R()<g3?(R()<.12?4:3):(R()<.5?1:2);
+        p.ae.push({s,e:s+UI(14,term.includes('thyroid')?300:60),term,soc,g,ir:true,ser:g>=3});
+      }
+    }
+  }
+  if(aeStop){ p.ae.push({s:aeStop-UI(5,15),e:aeStop+UI(10,40),term:pick(['Pneumonitis','Neutropenic sepsis','Acute kidney injury','Colitis']),soc:'—',g:3,ir:false,ser:true,dc:true}); }
+  if(death && R()<.08){ p.ae.push({s:death-UI(1,6),e:death,term:pick(['Pneumonia','Sepsis','Cardiac arrest']),soc:'Fatal',g:5,ir:false,ser:true}); }
+  p.ae.sort((a,b)=>a.s-b.s);
+  if(death){p.ae=p.ae.filter(a=>a.s<=death);p.ae.forEach(a=>{if(a.e>death)a.e=death})}
+  // Labs: screening + day 1 of each cycle (+ crossover cycles)
+  const visits=[-7,...new Set(p.ex.map(e=>e.d))].filter(v=>v<=fu).sort((a,b)=>a-b);
+  const has = t=>p.ae.find(a=>a.term===t);
+  const hep=has('Hepatitis'), aki=has('Acute kidney injury'), hypo=has('Hypothyroidism'), hyper=has('Hyperthyroidism'), neut=has('Neutropenia');
+  const bALT=U(14,30), bCR=U(.65,1.05), bTSH=U(1,2.8), bANC=U(3,6), bBI=U(.3,.8);
+  for(const v of visits){
+    const inAE=(a,pad=10)=>a&&v>=a.s-3&&v<=a.e+pad;
+    const alt = bALT*(1+.15*norm()) * (inAE(hep)? U(3.2,6):1) * (v>1&&R()<.06?U(1.6,2.6):1);
+    const ast = alt*U(.8,1.15);
+    const bili = bBI*(1+.15*norm()) * (inAE(hep)&&hep.g>=3? U(1.5,2.6):1);
+    const cr = bCR*(1+.08*norm()) * (inAE(aki)? U(1.6,2.8):1) * (1+Math.min(.25,v/2500));
+    const tsh = bTSH*(1+.2*norm()) * (inAE(hypo,400)? U(3,6): inAE(hyper)? U(.03,.12):1);
+    const anc = bANC*(1+.2*norm()) * (inAE(neut)? U(.18,.45): v>1?U(.7,1):1);
+    const vals={ALT:alt,AST:ast,BILI:bili,CREAT:cr,TSH:tsh,ANC:anc};
+    for(const t in vals){
+      if(t==='TSH' && v>1 && (visits.indexOf(v)%2)) continue;
+      const L=LABS[t], val=+vals[t].toFixed(t==='ALT'||t==='AST'?0:2);
+      p.lb.push({d:v,t,val,x:val/L.uln,f:val>L.uln?'H':val<L.lln?'L':''});
+    }
+  }
+  // Con meds
+  p.cm.push({s:-7,e:Math.min(fu,(arm==='P'||!xo?lastDose:lastDose)+21),name:'Folic acid',why:'Pemetrexed premedication',bg:true});
+  for(const a of p.ae){
+    if(a.ir && a.g>=2 && !a.term.includes('thyroid')) p.cm.push({s:a.s+UI(0,3),e:a.s+UI(28,56),name:'Prednisone',why:a.term});
+    if(a.term==='Hypothyroidism') p.cm.push({s:a.s+UI(5,20),e:fu,name:'Levothyroxine',why:a.term});
+    if(a.term==='Neutropenia'&&a.g>=3) p.cm.push({s:a.s+1,e:a.s+8,name:'Filgrastim',why:a.term});
+  }
+  p.ds = {eot:lastEx, pd, death, xo, tbp:tbp&&pd?true:false, aeStop, reason: death&&death<=lastEx+30?'Death':pd&&lastEx>=pd-21? 'Progressive disease': aeStop?'Adverse event': lastEx+21>=fu?'Ongoing':'Completed / other', last: death??fu};
+  return p;
+}
+const PTS = Array.from({length:60},(_,i)=>makePatient(i));
+
+// Plant a few known data problems so the signal engine has edge cases to find
+(function plant(){
+  let pw = PTS.filter(p=>p.arm==='P'&&p.ex.length>20);
+  if(pw.length<9) pw = PTS.filter(p=>p.ex.length>14).sort((a,b)=>b.ex.length-a.ex.length);
+  pw = Array.from({length:9},(_,k)=>pw[k%pw.length]);
+  // 1) Hy's law pattern
+  const h = pw[2]; const vd = h.ex[h.ex.length>40?30:12].d;
+  h.lb.filter(l=>l.d===vd).forEach(l=>{ if(l.t==='ALT'){l.val=172;l.x=4.3;l.f='H'} if(l.t==='AST'){l.val=150;l.x=3.75;l.f='H'} if(l.t==='BILI'){l.val=2.9;l.x=2.42;l.f='H'} });
+  h.ae.push({s:vd-2,e:vd+35,term:'Hepatitis',soc:'Hepatobiliary',g:3,ir:true,ser:true}); h.ae.sort((a,b)=>a.s-b.s);
+  h.cm.push({s:vd+1,e:vd+45,name:'Prednisone',why:'Hepatitis'});
+  // 2) AE recorded after death date
+  const dd = PTS.find(p=>p.ds.death && p.ds.death>120 && !p.ae.some(a=>a.g===5));
+  if(dd) dd.ae.push({s:dd.ds.death+9,e:dd.ds.death+14,term:'Fatigue',soc:'General',g:1,ir:false,ser:false});
+  // 3) Grade 3 irAE with no steroid
+  const ns = pw[5]; const s = Math.min(ns.ds.eot-10,120);
+  ns.ae.push({s,e:s+30,term:'Colitis',soc:'GI',g:3,ir:true,ser:true}); ns.ae.sort((a,b)=>a.s-b.s);
+  // 4) Long dosing gap
+  const lg = pw[8]; const k = Math.min(10,lg.ex.length-1); const cut = lg.ex[k].d;
+  lg.ex.forEach(e=>{ if(e.d>=cut && !e.xo) e.d+=35 }); lg.ex=lg.ex.filter(e=>e.d<=lg.fu);
+})();
+
+// ---------- Derived per-patient metrics + signal engine ----------
+for(const p of PTS){
+  const pd = p.ds.pd; p.pfsT = pd ?? (p.ds.death ?? p.fu);
+  const exP = p.ex.filter(e=>!e.xo); p.trtT = exP.length? Math.max(...exP.map(e=>e.d)):0;
+  p.nAE = p.ae.length; p.g3 = p.ae.some(a=>a.g>=3); p.irAny = p.ae.some(a=>a.ir);
+  p.altMax = Math.max(...p.lb.filter(l=>l.t==='ALT').map(l=>l.x));
+  p.best = Math.min(0,...p.tr.filter(t=>t.d>0 && (!pd||t.d<=pd)).map(t=>t.pct));
+  const bor = p.tr.filter(t=>t.d>0).map(t=>t.resp); p.bor = bor.includes('CR')?'CR':bor.includes('PR')?'PR':bor.includes('SD')?'SD':bor.includes('PD')?'PD':'NE';
+  p.ds.eot = p.trtT;
+  const S=(sev,title,detail,day)=>p.sig.push({sev,title,detail,day,p});
+  // Hy's law
+  const days=[...new Set(p.lb.map(l=>l.d))];
+  for(const d of days){ const a=p.lb.find(l=>l.d===d&&l.t==='ALT'), b=p.lb.find(l=>l.d===d&&l.t==='BILI');
+    if(a&&b&&a.x>3&&b.x>2) S('crit',"Potential Hy's law",`ALT ${a.x.toFixed(1)}×ULN with bilirubin ${b.x.toFixed(1)}×ULN on the same visit`,d); }
+  // AE after death
+  if(p.ds.death) for(const a of p.ae) if(a.s>p.ds.death) S('crit','AE starts after death',`${a.term} starts day ${a.s}, death on day ${p.ds.death}`,a.s);
+  // irAE >=3 without steroid
+  for(const a of p.ae) if(a.ir && a.g>=3 && !a.term.includes('thyroid') && !p.cm.some(c=>c.name==='Prednisone'&&c.s>=a.s-3&&c.s<=a.s+14))
+    S('warn','Grade ≥3 irAE, no steroid recorded',`${a.term} grade ${a.g} on day ${a.s}; no corticosteroid within 14 days`,a.s);
+  // dosing gap
+  const io=[...new Set(p.ex.filter(e=>!e.xo).map(e=>e.d))].sort((a,b)=>a-b);
+  for(let j=1;j<io.length;j++) if(io[j]-io[j-1]>42) S('warn','Dosing gap over 6 weeks',`${io[j]-io[j-1]} days between cycles (day ${io[j-1]} → ${io[j]})`,io[j-1]);
+  // treatment beyond progression
+  if(pd){ const after = io.filter(d=>d>pd); if(after.length) S('info','Dosed after documented PD',`${after.length} cycle(s) after PD on day ${pd}; check treatment-beyond-progression criteria`,after[0]); }
+  if(p.ds.xo) S('info','Crossover to pembrolizumab',`Placebo arm, PD day ${pd}, pembrolizumab from day ${p.ds.xo}`,p.ds.xo);
+}
+const ALLSIG = PTS.flatMap(p=>p.sig);
+// ---------- Cube helpers: anchors, per-patient features, time-bin measures, flat tables ----------
+const AE_TERMS=[...new Set(PTS.flatMap(p=>p.ae.map(a=>a.term)))].sort();
+const ALIGN_NAME={rand:'Randomization',g3:'First grade ≥3 AE',ir:'First immune-related AE',term:'First AE of term',cpr:'Confirmed partial response',pd:'Progression',xo:'Crossover'};
+const isResp=r=>r==='PR'||r==='CR';
+function anchorDay(p,a,term){
+  if(a==='rand')return 0;
+  if(a==='g3'){const x=p.ae.find(e=>e.g>=3);return x?x.s:null}
+  if(a==='ir'){const x=p.ae.find(e=>e.ir);return x?x.s:null}
+  if(a==='term'){const x=p.ae.find(e=>e.term===term);return x?x.s:null}
+  if(a==='cpr'){const r=p.tr.filter(t=>t.d>0);for(const t of r)if(isResp(t.resp)&&r.some(u=>u.d>=t.d+28&&isResp(u.resp)))return t.d;return null}
+  if(a==='pd')return p.ds.pd??null;
+  if(a==='xo')return p.ds.xo??null;
+  return 0;
+}
+const maxGap=p=>{const d=[...new Set(p.ex.filter(e=>!e.xo).map(e=>e.d))].sort((a,b)=>a-b);let g=0;for(let i=1;i<d.length;i++)g=Math.max(g,d[i]-d[i-1]);return g};
+const peakX=(p,t)=>Math.max(0,...p.lb.filter(l=>l.t===t).map(l=>l.x));
+// Columns of the patient × domain matrix (time collapsed)
+const FEAT=[
+  {k:'cyc',dom:'EX',name:'Cycles given',f:p=>new Set(p.ex.filter(e=>!e.xo).map(e=>e.d)).size,max:30},
+  {k:'gap',dom:'EX',name:'Longest gap (days)',f:maxGap,max:56},
+  {k:'nae',dom:'AE',name:'AEs reported',f:p=>p.nAE,max:10},
+  {k:'mxg',dom:'AE',name:'Worst grade',f:p=>Math.max(0,...p.ae.map(a=>a.g)),grade:true},
+  {k:'irg',dom:'AE',name:'Worst immune AE grade',f:p=>Math.max(0,...p.ae.filter(a=>a.ir).map(a=>a.g)),grade:true},
+  {k:'alt',dom:'LB',name:'Peak ALT ×ULN',f:p=>peakX(p,'ALT'),max:4,dec:1},
+  {k:'cre',dom:'LB',name:'Peak creatinine ×ULN',f:p=>peakX(p,'CREAT'),max:2.5,dec:1},
+  {k:'tsh',dom:'LB',name:'Peak TSH ×ULN',f:p=>peakX(p,'TSH'),max:4,dec:1},
+  {k:'anc',dom:'LB',name:'Lowest ANC ×LLN',f:p=>Math.min(9,...p.lb.filter(l=>l.t==='ANC').map(l=>l.val/LABS.ANC.lln)),max:3,dec:1,low:true},
+  {k:'best',dom:'TR',name:'Best % change',f:p=>p.best,div:true},
+  {k:'bor',dom:'TR',name:'Best response',f:p=>p.bor,cat:true},
+  {k:'ster',dom:'CM',name:'Steroid days',f:p=>p.cm.filter(c=>c.name==='Prednisone').reduce((s,c)=>s+c.e-c.s,0),max:90},
+  {k:'cmn',dom:'CM',name:'Treatment meds',f:p=>p.cm.filter(c=>!c.bg).length,max:4}
+];
+for(const p of PTS){p.F={};for(const c of FEAT)p.F[c.k]=c.f(p)}
+// Rows of the domain × time summary (patients collapsed). a,b = absolute study-day window
+const io=e=>e.drug==='Pembrolizumab'||e.drug==='Placebo';
+const MEAS=[
+  {dom:'EX',name:'Dosed (pembrolizumab or placebo)',num:(p,a,b)=>p.ex.some(e=>io(e)&&e.d>=a&&e.d<b)},
+  {dom:'AE',name:'Grade ≥3 AE ongoing',num:(p,a,b)=>p.ae.some(x=>x.g>=3&&x.s<b&&x.e>=a)},
+  {dom:'AE',name:'Immune-related AE ongoing',num:(p,a,b)=>p.ae.some(x=>x.ir&&x.s<b&&x.e>=a)},
+  {dom:'LB',name:'LAB outside normal range',lab:true,den:(p,a,b,t)=>p.lb.some(l=>l.t===t&&l.d>=a&&l.d<b),num:(p,a,b,t)=>p.lb.some(l=>l.t===t&&l.d>=a&&l.d<b&&l.f)},
+  {dom:'TR',name:'Responding at scan (CR or PR)',den:(p,a,b)=>p.tr.some(t=>t.d>0&&t.d>=a&&t.d<b),num:(p,a,b)=>p.tr.some(t=>t.d>=a&&t.d<b&&isResp(t.resp))},
+  {dom:'TR',name:'Progressed so far',num:(p,a,b)=>p.ds.pd!=null&&p.ds.pd<b},
+  {dom:'CM',name:'On corticosteroid',num:(p,a,b)=>p.cm.some(c=>c.name==='Prednisone'&&c.s<b&&c.e>=a)}
+];
+const observed=(p,a,b)=>a<=p.ds.last&&b>-14;
+// Flat SDTM-like tables the agent can query
+const TB={DM:[],AE:[],LB:[],EX:[],TR:[],CM:[],SIG:[]};
+for(const p of PTS){const A=p.arm==='P'?'Pembrolizumab + chemo':'Placebo + chemo',u=p.id;
+  TB.DM.push({USUBJID:u,ARM:A,AGE:p.age,SEX:p.sex,TPS:p.tps,TPSGRP:['<1%','1-49%','>=50%'][p.tg],ECOG:p.ecog,PLATINUM:p.plat,BOR:p.bor,BESTPCHG:p.best,PDDY:p.ds.pd,DTHDY:p.ds.death,XODY:p.ds.xo,LASTDY:p.ds.last,NAE:p.nAE,LASTDOSEDY:p.trtT});
+  p.ae.forEach(a=>TB.AE.push({USUBJID:u,ARM:A,AETERM:a.term,AESOC:a.soc,AETOXGR:a.g,AEIR:a.ir?'Y':'N',AESER:a.ser?'Y':'N',AESTDY:a.s,AEENDY:a.e}));
+  p.lb.forEach(l=>TB.LB.push({USUBJID:u,ARM:A,LBTESTCD:l.t,LBSTRESN:l.val,XULN:+l.x.toFixed(2),LBNRIND:l.f==='H'?'HIGH':l.f==='L'?'LOW':'NORMAL',LBDY:l.d}));
+  p.ex.forEach(e=>TB.EX.push({USUBJID:u,ARM:A,EXTRT:e.drug,EXDOSE:e.dose,CYCLE:e.c,EXSTDY:e.d,CROSSOVER:e.xo?'Y':'N'}));
+  p.tr.forEach(t=>TB.TR.push({USUBJID:u,ARM:A,TRDY:t.d,SLD:t.sld,PCHG:t.pct,RSORRES:t.resp}));
+  p.cm.forEach(c=>TB.CM.push({USUBJID:u,ARM:A,CMTRT:c.name,CMINDC:c.why,CMSTDY:c.s,CMENDY:c.e}));
+  p.sig.forEach(s=>TB.SIG.push({USUBJID:u,ARM:A,SIGNAL:s.title,DETAIL:s.detail,SEVERITY:s.sev,DAY:s.day}));
+}
+// ---------- 2D lanes with semantic zoom ----------
+const $=id=>document.getElementById(id);
+const ST={view:'2d',mode:'PDT',align:'rand',term:AE_TERMS.includes('Pneumonitis')?'Pneumonitis':AE_TERMS[0],pick:null,layers:new Set(DOM.map(d=>d.k)),peel:true,arm:'all',tps:'all',show:'all',sort:'id',lab:'ALT',sel:null,focus:null,ppd:1,x0:-20,y0:0,yRow:null};
+const COL={};
+const CN=['bg','panel','ink','muted','line','grid','soft','accent','pbo','c-ex','c-ae','c-lb','c-tr','c-cm','c-ds','g1','g2','g3','g4','g5','ok','warn','crit'];
+function readColors(){const cs=getComputedStyle(document.documentElement);CN.forEach(n=>COL[n]=cs.getPropertyValue('--'+n).trim()||'#888')}
+const MONO='"JetBrains Mono",ui-monospace,Menlo,monospace', BODY='Barlow,system-ui,sans-serif';
+const gc=g=>COL['g'+Math.min(5,Math.max(1,g))];
+const armC=p=>p.arm==='P'?COL.accent:COL.pbo;
+const sevC=s=>s==='crit'?COL.crit:s==='warn'?COL.warn:COL.accent;
+const RESP={CR:'Complete response',PR:'Partial response',SD:'Stable disease',PD:'Progressive disease',NE:'Not evaluable',BL:'Baseline'};
+const RC=r=>r==='PR'||r==='CR'?COL['c-tr']:r==='PD'?COL.crit:COL.muted;
+const cv=$('cv'),ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1,LW=132,hits=[],ROWS=[],rowH=20,laneH=15,prevRowH=0,SIGV=[];
+const AX=28;
+const level=(ppd=ST.ppd)=>ppd<0.8?0:ppd<3?1:2;
+let OFF=0;const X=d=>LW+(d-OFF-ST.x0)*ST.ppd;
+const dayAt=px=>ST.x0+(px-LW)/ST.ppd;
+const relMin=()=>ROWS.length?Math.min(...ROWS.map(p=>-14-p.off)):-14;
+const maxDay=()=>ROWS.length?Math.max(...ROWS.map(p=>p.ds.last-p.off)):700;
+const fitPPD=()=>Math.max(.2,(W-LW-24)/(maxDay()-relMin()+30));
+
+function filterRows(){
+  const r=PTS.filter(p=>{p.off=anchorDay(p,ST.align,ST.term);return p.off!=null&&(ST.arm==='all'||p.arm===ST.arm)&&(ST.tps==='all'||p.tg===+ST.tps)&&
+    (ST.show==='all'||(ST.show==='g3'&&p.g3)||(ST.show==='ir'&&p.irAny)||(ST.show==='sig'&&p.sig.length)||(ST.show==='xo'&&p.ds.xo)||(ST.show==='pd'&&p.ds.pd)||(ST.show==='pick'&&ST.pick&&ST.pick.has(p.id)))});
+  let key={id:p=>p.i,pfs:p=>-p.pfsT,trt:p=>-p.trtT,ae:p=>-p.nAE,alt:p=>-p.altMax,tps:p=>-p.tps,shr:p=>p.best,anc:p=>p.off}[ST.sort];
+  if(!key){const c=FEAT.find(f=>'f:'+f.k===ST.sort)||FEAT[0];key=c.cat?p=>['CR','PR','SD','PD','NE'].indexOf(p.F[c.k]):(c.low||c.div)?p=>p.F[c.k]:p=>-p.F[c.k]}
+  return r.sort((a,b)=>key(a)-key(b)||a.i-b.i);
+}
+function rowHFor(ppd){if(ST.mode==='PD')return 24;if(ST.mode==='DT')return 22;const L=level(ppd),nl=Math.max(1,ST.layers.size);return ST.peel?10+nl*(L===2?26:15):(L===2?32:20)}
+function layout(){LW=ST.mode==='DT'?(W<520?118:214):(W<520?86:132);
+  laneH=level()===2?26:15; rowH=rowHFor(ST.ppd);
+  if(prevRowH&&rowH!==prevRowH&&ST.yRow==null){const c=(H-AX)/2;ST.y0=(ST.y0+c)*rowH/prevRowH-c}
+  prevRowH=rowH;
+  if(ST.yRow!=null) ST.y0=ST.yRow*rowH-(H-AX)/4;
+}
+function clampView(){
+  ST.ppd=Math.min(40,Math.max(fitPPD()*.85,ST.ppd));
+  const vis=(W-LW)/ST.ppd; const lo=relMin()-30;ST.x0=Math.max(lo,Math.min(ST.x0,Math.max(lo,maxDay()+30-vis)));
+  ST.y0=Math.max(0,Math.min(ST.y0,Math.max(0,nRows()*rowH-(H-AX)+8)));
+}
+function resize(){const r=cv.getBoundingClientRect();if(!r.width)return;DPR=window.devicePixelRatio||1;W=r.width;H=r.height;cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);LW=W<520?86:132}
+
+// primitives
+function line(x1,y1,x2,y2,c,w=1,dash){ctx.strokeStyle=c;ctx.lineWidth=w;ctx.setLineDash(dash||[]);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.setLineDash([])}
+function rect(x,y,w,h,c,a=1){ctx.globalAlpha=a;ctx.fillStyle=c;ctx.fillRect(x,y,w,h);ctx.globalAlpha=1}
+function circ(x,y,r,fill,stroke,lw=1.2){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw;ctx.stroke()}}
+function text(s,x,y,c,font,align='left'){ctx.fillStyle=c;ctx.font=font||'10px '+MONO;ctx.textAlign=align;ctx.fillText(s,x,y)}
+function poly(pts,c){ctx.beginPath();pts.forEach(([x,y],k)=>k?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fillStyle=c;ctx.fill()}
+const diamond=(x,y,r,c)=>poly([[x,y-r],[x+r,y],[x,y+r],[x-r,y]],c);
+const triDown=(x,y,r,c)=>poly([[x-r,y-r*.8],[x+r,y-r*.8],[x,y+r*.8]],c);
+const triRight=(x,y,r,c)=>poly([[x-r*.7,y-r],[x+r,y],[x-r*.7,y+r]],c);
+function cross(x,y,r,c){line(x-r,y-r,x+r,y+r,c,2);line(x-r,y+r,x+r,y-r,c,2)}
+function hit(x,y,w,h,p,html,lab){hits.push({x,y,w,h,p,html,lab})}
+const inView=x=>x>LW-30&&x<W+30;
+
+// tooltips
+const aeTip=a=>`<b>${a.term}</b> · grade ${a.g}${a.ir?' · immune-related':''}${a.ser?' · serious':''}<br>Day ${a.s} to ${a.e}${a.dc?'<br>Led to stopping treatment':''}`;
+const labTip=(l,p)=>{let s=`<b>${l.t} ${l.val} ${LABS[l.t].u}</b>${l.f?(l.f==='H'?' high':' low'):''}<br>${l.x.toFixed(2)}× upper limit of normal · Day ${l.d}`;
+  if(l.t==='ALT'||l.t==='AST'){const b=p.lb.find(m=>m.d===l.d&&m.t==='BILI');if(b)s+=`<br>Bilirubin same visit: ${b.x.toFixed(2)}× ULN`}return s};
+const cmTip=c=>`<b>${c.name}</b><br>Day ${c.s} to ${c.e} · for ${c.why}`;
+
+// one function per domain layer: (patient, lane centre y, lane height, peeled?)
+function packed(p,items,cy,h,tn,colorFn,labelFn,tipFn,outlineFn){
+  const L=level(),th=(h-6)/tn,tr=new Array(tn).fill(-1e9);ctx.font='10px '+BODY;
+  for(const a of items){
+    let k=tr.findIndex(t=>t<a.s);if(k<0)k=tr.indexOf(Math.min(...tr));
+    const x=X(a.s),w=Math.max(2,(a.e-a.s)*ST.ppd),yy=cy-h/2+3+k*th;
+    const lab=L===2&&th>=7?labelFn(a):'';ctx.font='10px '+BODY;const lw=lab?ctx.measureText(lab).width+8:0;
+    tr[k]=a.e+(lw+4)/ST.ppd;
+    if(x>W+20||x+w+lw<LW-20)continue;
+    rect(x,yy+1,w,th-2,colorFn(a),.92);
+    if(outlineFn&&outlineFn(a)){ctx.strokeStyle=COL.ink;ctx.lineWidth=1;ctx.strokeRect(x+.5,yy+1.5,Math.max(1,w-1),th-3)}
+    if(lab)text(lab,x+w+4,yy+th/2+3.5,COL.ink,'10px '+BODY);
+    hit(x,yy,Math.max(w,4),th,p,tipFn(a));
+  }
+}
+const DRAW={
+  EX(p,cy,h,peel){const L=level();
+    if(peel){rect(X(1),cy-2,(p.trtT+20)*ST.ppd,4,armC(p),.3);
+      if(p.ds.xo){const xs=p.ex.filter(e=>e.xo);if(xs.length)rect(X(p.ds.xo),cy-2,(xs[xs.length-1].d-p.ds.xo+21)*ST.ppd,4,COL.accent,.3)}}
+    if(L===0)return;
+    const th=peel?h*.62:(L===2?12:8);
+    for(const e of p.ex){if(!(e.drug==='Placebo'||e.drug==='Pembrolizumab'))continue;const x=X(e.d);if(!inView(x))continue;
+      line(x,cy-th/2,x,cy+th/2,e.xo?COL.accent:COL['c-ex'],L===2?2:1.4);
+      const chem=e.xo?[]:p.ex.filter(c=>c.d===e.d&&c!==e&&!c.xo);
+      if(L===2&&peel){chem.forEach((c,k)=>circ(x+4.5,cy-th/2+3+k*5,1.8,c.drug==='Pemetrexed'?COL['c-ex']:COL.ink));
+        if(ST.ppd*21>30)text('C'+e.c,x+8,cy+th/2-1,COL.muted,'9px '+MONO)}
+      hit(x-3,cy-th/2,7,th,p,`<b>Cycle ${e.c}${e.xo?' (crossover)':''}</b> · Day ${e.d}<br>${e.drug} ${e.dose}${chem.length?'<br>+ '+chem.map(c=>c.drug+' '+c.dose).join('<br>+ '):''}`)}
+  },
+  AE(p,cy,h,peel){const L=level();
+    if(peel){packed(p,p.ae.filter(a=>L>0||a.g>=3),cy,h,L===2?3:2,a=>gc(a.g),a=>`${a.term} ${a.g}`,aeTip,a=>a.ir);return}
+    for(const a of p.ae){if(L===0&&a.g<3)continue;const x=X(a.s);if(!inView(x)&&!inView(X(a.e)))continue;
+      if(L===0){triDown(x,cy-7,4.5,gc(a.g));hit(x-5,cy-12,10,10,p,aeTip(a));continue}
+      const yy=cy+(L===2?6:4),hh=L===2?4:2.5,w=Math.max(2,(a.e-a.s)*ST.ppd);
+      rect(x,yy,w,hh,gc(a.g),.95);if(a.ir)line(x,yy-.8,x+w,yy-.8,COL.ink,1);
+      hit(x,yy-3,w,hh+6,p,aeTip(a))}
+  },
+  LB(p,cy,h,peel){const L=level(),t=ST.lab,pts=p.lb.filter(l=>l.t===t);
+    if(peel&&L>=1){const top=cy-h/2+3,bot=cy+h/2-3,lim=t==='TSH'?4:t==='ANC'?1.6:5;
+      const yv=x=>bot-(Math.min(lim,x)/lim)*(bot-top);
+      line(X(-10),yv(1),X(p.ds.last),yv(1),COL['c-lb'],.8,[3,3]);
+      if(t==='ANC')line(X(-10),yv(LABS.ANC.lln/LABS.ANC.uln),X(p.ds.last),yv(LABS.ANC.lln/LABS.ANC.uln),COL['c-lb'],.8,[1,3]);
+      if(L===2){ctx.beginPath();pts.forEach((l,k)=>{const xx=X(l.d),yy=yv(l.x);k?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.strokeStyle=COL['c-lb'];ctx.lineWidth=1.3;ctx.stroke()}
+      for(const l of pts){const xx=X(l.d);if(!inView(xx))continue;const yy=yv(l.x);
+        if(l.f)circ(xx,yy,L===2?3:2.4,l.f==='H'?COL['c-lb']:COL.panel,COL['c-lb']);else if(L===2)circ(xx,yy,1.5,COL.muted);
+        if(L===2&&l.f&&(l.x>=2||l.f==='L'))text(l.x.toFixed(1)+'×',xx+4,yy-4,COL['c-lb'],'9px '+MONO);
+        hit(xx-4,yy-4,8,8,p,labTip(l,p))}
+      return}
+    if(L===0&&!peel)return;
+    const yy=peel?cy:cy-(L===2?11:6);
+    for(const l of pts){if(!l.f||(L===0&&l.x<3))continue;const xx=X(l.d);if(!inView(xx))continue;
+      const r=Math.min(4,1.6+Math.abs(Math.log2(l.x))*.9);circ(xx,yy,r,l.f==='H'?COL['c-lb']:COL.panel,COL['c-lb']);
+      if(L===2&&l.x>=2)text(l.x.toFixed(1)+'×',xx+r+2,yy+3,COL['c-lb'],'9px '+MONO);
+      hit(xx-4,yy-4,8,8,p,labTip(l,p))}
+  },
+  TR(p,cy,h,peel){const L=level();if(L===0)return;
+    let yv=()=>cy;
+    if(peel&&L===2){const top=cy-h/2+4,bot=cy+h/2-4;yv=v=>top+(60-Math.min(60,Math.max(-100,v)))/160*(bot-top);
+      line(X(-10),yv(0),X(p.ds.last),yv(0),COL.line,1);line(X(-10),yv(-30),X(p.ds.last),yv(-30),COL['c-tr'],.8,[3,3]);
+      ctx.beginPath();p.tr.forEach((t,k)=>{const xx=X(t.d),yy=yv(t.pct);k?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.strokeStyle=COL['c-tr'];ctx.lineWidth=1.2;ctx.stroke()}
+    for(const t of p.tr){const xx=X(t.d);if(!inView(xx))continue;const yy=yv(t.pct);
+      if(t.resp==='BL')circ(xx,yy,2,COL.muted);
+      else{const r=L===2?4.5:3.3;circ(xx,yy,r,t.resp==='SD'?COL.panel:RC(t.resp),RC(t.resp),1.4);if(t.resp==='CR')circ(xx,yy,r+2.5,null,RC(t.resp),1);
+        if(L===2&&peel)text(`${t.resp} ${t.pct>0?'+':''}${t.pct}%`,xx+7,yy+3.5,COL.muted,'9px '+MONO)}
+      hit(xx-5,yy-5,10,10,p,`<b>${RESP[t.resp]}</b> · Day ${t.d}<br>Sum of target lesions ${t.sld} mm (${t.pct>0?'+':''}${t.pct}% vs baseline)`)}
+  },
+  CM(p,cy,h,peel){const L=level();
+    if(peel){const list=p.cm.filter(c=>L===2||!c.bg);packed(p,list,cy,h,Math.min(3,Math.max(1,list.length)),c=>COL['c-cm'],c=>c.name,cmTip);return}
+    if(L===0)return;const yy=cy+(L===2?12:8);
+    for(const c of p.cm){if(c.bg)continue;const x=X(c.s),w=Math.max(2,(c.e-c.s)*ST.ppd);rect(x,yy,w,1.8,COL['c-cm']);hit(x,yy-3,w,8,p,cmTip(c))}
+  }
+};
+function drawDS(p,y){
+  const L=level(),cy=y+rowH/2,top=y+3,bot=y+rowH-3,my=ST.peel?top+5:cy;
+  if(p.ds.pd){const x=X(p.ds.pd);if(ST.peel)line(x,top,x,bot,COL.crit,1,[2,2]);diamond(x,my,L===0?4:5,COL.crit);hit(x-5,my-6,10,12,p,`<b>Progressive disease</b> · Day ${p.ds.pd}`)}
+  if(p.ds.xo){const x=X(p.ds.xo);triRight(x,my,4.5,COL.accent);hit(x-5,my-6,10,12,p,`<b>Crossover</b> to pembrolizumab · Day ${p.ds.xo}`)}
+  if(p.ds.death){const x=X(p.ds.death);if(ST.peel)line(x,top,x,bot,COL.ink,1,[2,2]);cross(x,my,3.5,COL.ink);hit(x-5,my-6,10,12,p,`<b>Death</b> · Day ${p.ds.death}`)}
+  else{const x=X(p.fu);line(x,my-5,x,my+5,COL.muted,1.5);hit(x-4,my-6,8,12,p,`<b>Alive at data cut</b> · Day ${p.fu}`)}
+  for(const s of p.sig){if(s.sev==='info')continue;const x=X(s.day),f=ST.focus===s;circ(x,cy,f?11:8,null,sevC(s.sev),f?2.5:1.3);if(f)circ(x,cy,15,null,sevC(s.sev),1)}
+}
+function drawRow(p,y,i){OFF=p.off;
+  if(ST.sel===p)rect(LW,y,W-LW,rowH,COL.accent,.09);else if(i%2)rect(LW,y,W-LW,rowH,COL.soft);
+  if(ST.peel){
+    DOM.filter(d=>ST.layers.has(d.k)).forEach((d,j)=>{const lc=y+5+j*laneH+laneH/2;
+      line(X(1),lc,X(p.ds.last),lc,COL.grid,1);DRAW[d.k](p,lc,laneH,true)});
+    line(LW,y+rowH-.5,W,y+rowH-.5,COL.line,1);
+  }else{
+    const cy=y+rowH/2,L=level(),bh=L===0?6:L===1?5:7;
+    line(X(1),cy,X(p.ds.last),cy,COL.line,1);
+    rect(X(1),cy-bh/2,Math.max(1,(p.trtT+20)*ST.ppd),bh,armC(p),.5);
+    if(p.ds.xo){const xs=p.ex.filter(e=>e.xo);if(xs.length)rect(X(p.ds.xo),cy-bh/2,(xs[xs.length-1].d-p.ds.xo+21)*ST.ppd,bh,COL.accent,.25)}
+    DOM.forEach(d=>{if(ST.layers.has(d.k))DRAW[d.k](p,cy,rowH,false)});
+  }
+  drawDS(p,y);
+}
+const tickStep=()=>[7,21,42,84,168,336].find(s=>s*ST.ppd>=58)||336;
+function drawAxis(st){
+  rect(0,0,W,AX,COL.panel);line(0,AX-.5,W,AX-.5,COL.line);
+  ctx.save();ctx.beginPath();ctx.rect(LW,0,W-LW,AX);ctx.clip();
+  for(let t=tick0(st);X(t)<W+40;t+=st){const x=X(t);line(x+.5,AX-5,x+.5,AX,COL.muted);text(tickLabel(t),x+3,AX-9,t===0&&ST.align!=='rand'?COL.ink:COL.muted,(t===0&&ST.align!=='rand'?'600 ':'')+'10px '+MONO)}
+  ctx.restore();text(ST.mode==='DT'?'Measure':LW<100?'Patient':'Patient · week',10,AX-9,COL.muted,'600 10px '+BODY);
+}
+function drawLabels(){
+  rect(0,AX,LW,H-AX,COL.panel);line(LW-.5,AX,LW-.5,H,COL.line);
+  ROWS.forEach((p,i)=>{const y=AX+i*rowH-ST.y0;if(y+rowH<AX||y>H)return;
+    if(ST.sel===p)rect(0,y,LW,rowH,COL.accent,.14);
+    const ty=ST.peel?y+15:y+rowH/2+(rowH>=30?-2:4);
+    rect(9,ty-8,4,10,armC(p));
+    const id=LW<100?p.id.slice(-4):p.id;text(id,17,ty,COL.ink,'11px '+MONO);
+    if(p.sig.some(s=>s.sev!=='info')){ctx.font='11px '+MONO;const sv=p.sig.some(s=>s.sev==='crit')?'crit':'warn';circ(17+ctx.measureText(id).width+7,ty-4,3.2,sevC(sv))}
+    if(ST.peel||rowH>=30)text(`TPS ${p.tps}% · ${p.bor}${ST.align!=='rand'?' · @D'+p.off:''}`,17,ty+13,COL.muted,'11px '+BODY);
+    if(ST.peel)DOM.filter(d=>ST.layers.has(d.k)).forEach((d,j)=>{if(j===0&&LW<100)return;text(d.k,LW-6,y+5+j*laneH+laneH/2+3,COL[d.v.slice(2)],'9px '+MONO,'right')});
+    hit(0,y,LW,rowH,p,`<b>${p.id}</b><br>${p.arm==='P'?'Pembrolizumab':'Placebo'} + pemetrexed + ${p.plat.toLowerCase()}<br>PD-L1 TPS ${p.tps}% · best response: ${RESP[p.bor]}`,true)});
+}
+const tick0=st=>{const b=ST.align==='rand'?1:0;return Math.ceil((ST.x0-b)/st)*st+b};
+const tickLabel=t=>ST.align==='rand'?(t===1?'Day 1':`Wk ${(t-1)/7}`):(t===0?'Anchor':`${t>0?'+':'−'}${Math.abs(t/7)} wk`);
+function draw(){
+  if(!W)return;
+  ctx.setTransform(DPR,0,0,DPR,0,0);rect(0,0,W,H,COL.panel);
+  layout();clampView();hits=[];OFF=0;
+  if(ST.mode==='PD'){drawMatrix();$('zLvl').textContent='Matrix';return}
+  const st=tickStep();
+  ctx.save();ctx.beginPath();ctx.rect(LW,AX,W-LW,H-AX);ctx.clip();
+  for(let t=tick0(st);X(t)<W;t+=st)line(X(t)+.5,AX,X(t)+.5,H,COL.grid,1);
+  if(ST.mode==='DT')drawSummary();else ROWS.forEach((p,i)=>{const y=AX+i*rowH-ST.y0;if(y+rowH<AX||y>H)return;drawRow(p,y,i)});
+  OFF=0;if(ST.align!=='rand')line(X(0)+.5,AX,X(0)+.5,H,COL.ink,1.5);
+  ctx.restore();
+  if(ST.mode==='DT')drawSummaryLabels();else drawLabels();
+  drawAxis(st);
+  if(!ROWS.length)text('No patients have this anchor with these filters.',LW+16,AX+34,COL.muted,'14px '+BODY);
+  $('zLvl').textContent=['Overview','Events','Detail'][level()];
+}
+// ---------- Collapsed views: patient × domain matrix, domain × time summary ----------
+ST.mx=0;
+const DOMV={EX:'c-ex',AE:'c-ae',LB:'c-lb',TR:'c-tr',CM:'c-cm'};
+const MTOP=56;
+const ALERT={alt:v=>v>=3,cre:v=>v>=1.5,tsh:v=>v>=2,anc:v=>v<1,gap:v=>v>42,mxg:v=>v>=3,irg:v=>v>=3};
+function nRows(){return ST.mode==='DT'?dtRows().length:ROWS.length+(ST.mode==='PD'?2:0)}
+const matCols=()=>FEAT.filter(c=>ST.layers.has(c.dom));
+const fmtF=(c,v)=>c.cat?v:c.grade?(v?'Grade '+v:'–'):c.div?(v>0?'+':'')+v+'%':c.dec?v.toFixed(c.dec)+'×':String(v);
+function fitText(s,maxW,font){ctx.font=font;if(ctx.measureText(s).width<=maxW)return s;while(s.length>2&&ctx.measureText(s+'…').width>maxW)s=s.slice(0,-1);return s+'…'}
+function wrap2(s,maxW,font){ctx.font=font;const w=s.split(' ');let a='',i=0;for(;i<w.length;i++){const t=a?a+' '+w[i]:w[i];if(ctx.measureText(t).width>maxW&&a)break;a=t}
+  return [a,fitText(w.slice(i).join(' '),maxW,font)].filter(Boolean)}
+function matCW(n){return Math.max(64,(W-LW-6)/Math.max(1,n))}
+function drawMatrix(){
+  const cols=matCols(),cw=matCW(cols.length),maxMx=Math.max(0,cols.length*cw-(W-LW));ST.mx=Math.max(0,Math.min(ST.mx,maxMx));
+  ctx.save();ctx.beginPath();ctx.rect(LW,MTOP,W-LW,H-MTOP);ctx.clip();
+  ROWS.forEach((p,i)=>{const y=MTOP+i*rowH-ST.y0;if(y+rowH<MTOP||y>H)return;
+    if(ST.sel===p)rect(LW,y,W-LW,rowH,COL.accent,.1);else if(i%2)rect(LW,y,W-LW,rowH,COL.soft);
+    cols.forEach((c,j)=>{const x=LW+j*cw-ST.mx;if(x+cw<LW||x>W)return;const v=p.F[c.k],pad=6,bw=cw-pad*2;
+      const al=ALERT[c.k]&&ALERT[c.k](v),s=fmtF(c,v);
+      if(c.cat)circ(x+pad+3,y+rowH/2-1,3.5,RC(v));
+      text(s,x+pad+(c.cat?10:0),y+rowH/2+2,al?COL.crit:(c.grade&&!v?COL.muted:COL.ink),(al?'600 ':'')+'11px '+MONO);
+      let f=0,col=COL[DOMV[c.dom]];
+      if(c.grade){f=v/5;col=gc(v||1)}else if(c.div){f=Math.min(1,Math.abs(v)/100);col=v<0?COL['c-tr']:COL.crit}
+      else if(!c.cat){f=c.low?1-Math.min(v,c.max)/c.max:Math.min(v,c.max)/c.max}
+      if(f>0)rect(x+pad,y+rowH-7,Math.max(2,bw*f),3,col,.9);
+      if(j)line(x+.5,y+3,x+.5,y+rowH-3,COL.grid,1);
+      hit(x,y,cw,rowH,p,`<b>${p.id}</b><br>${c.name}: ${s}${ST.align!=='rand'?'<br>Anchor on day '+p.off:''}`)});
+  });
+  ctx.restore();
+  // header
+  rect(0,0,W,MTOP,COL.panel);line(0,MTOP-.5,W,MTOP-.5,COL.line);
+  ctx.save();ctx.beginPath();ctx.rect(LW,0,W-LW,MTOP);ctx.clip();
+  let prev='';cols.forEach((c,j)=>{const x=LW+j*cw-ST.mx,dc=COL[DOMV[c.dom]];
+    if(c.dom!==prev){line(x+1,4.5,x+cw*FEAT.filter(f=>f.dom===c.dom&&ST.layers.has(f.dom)).length-1,4.5,dc,2);text(c.dom,x+6,18,dc,'600 10px '+MONO);prev=c.dom}
+    const on=ST.sort==='f:'+c.k;
+    wrap2(c.name,cw-12,'11px '+BODY).forEach((t,k)=>text(t,x+6,33+k*13,on?COL.ink:COL.muted,(on?'600 ':'')+'11px '+BODY));
+    if(on)text('▼',x+cw-12,18,COL.ink,'9px '+BODY);
+    hit(x,0,cw,MTOP,null,`<b>${c.name}</b><br>Click to sort patients by this column`,false,()=>sortBy('f:'+c.k,c.name))});
+  ctx.restore();
+  // patient labels
+  rect(0,MTOP,LW,H-MTOP,COL.panel);line(LW-.5,0,LW-.5,H,COL.line);
+  text(ST.align==='rand'?'Patient':'Patient · anchor',10,MTOP-9,COL.muted,'600 10px '+BODY);
+  ROWS.forEach((p,i)=>{const y=MTOP+i*rowH-ST.y0;if(y+rowH<MTOP||y>H)return;
+    if(ST.sel===p)rect(0,y,LW,rowH,COL.accent,.14);rect(9,y+7,4,10,armC(p));
+    text(LW<100?p.id.slice(-4):p.id,17,y+16,COL.ink,'11px '+MONO);
+    hit(0,y,LW,rowH,p,`<b>${p.id}</b><br>${p.arm==='P'?'Pembrolizumab':'Placebo'} + chemo · TPS ${p.tps}%`,true)});
+  if(!ROWS.length)text('No patients have this anchor with these filters.',LW+16,MTOP+30,COL.muted,'14px '+BODY);
+}
+function dtRows(){const arms=ST.arm==='all'?['P','B']:[ST.arm],out=arms.map(a=>({n:true,arm:a}));
+  MEAS.filter(m=>ST.layers.has(m.dom)).forEach(m=>arms.forEach(a=>out.push({m,arm:a})));return out}
+const binW=()=>level()===2?7:21;
+const armName=a=>a==='P'?'Pembro + chemo':'Placebo + chemo';
+const relRange=(a,b)=>ST.align==='rand'?`Days ${a} to ${b-1}`:`Days ${a>0?'+':''}${a} to ${b-1>0?'+':''}${b-1} from anchor`;
+const measName=m=>m.name.replace('LAB',ST.lab);
+function drawSummary(){
+  const rows=dtRows(),bw=binW(),base=ST.align==='rand'?1:0,k0=Math.floor((ST.x0-base)/bw)*bw+base,w=bw*ST.ppd;
+  const pa={P:ROWS.filter(p=>p.arm==='P'),B:ROWS.filter(p=>p.arm==='B')};
+  rows.forEach((r,i)=>{const y=AX+i*rowH-ST.y0;if(y+rowH<AX||y>H)return;
+    if(i%2)rect(LW,y,W-LW,rowH,COL.soft);
+    if(i&&(r.m!==rows[i-1].m))line(LW,y+.5,W,y+.5,COL.line,1);
+    const ps=pa[r.arm];
+    for(let a=k0;X(a)<W;a+=bw){const b=a+bw,x=X(a);if(x+w<LW)continue;let den=0,num=0;const ids=[];
+      for(const p of ps){const A=a+p.off,B=b+p.off;if(!observed(p,A,B))continue;
+        if(r.n){den++;ids.push(p.id);continue}
+        if(r.m.den&&!r.m.den(p,A,B,ST.lab))continue;den++;if(r.m.num(p,A,B,ST.lab)){num++;ids.push(p.id)}}
+      if(!den)continue;
+      if(r.n){const f=den/Math.max(1,ps.length);rect(x+.5,y+3,w-1,rowH-6,armC({arm:r.arm}),.12+.5*f);
+        if(w>=22)text(String(den),x+w/2,y+rowH/2+4,COL.ink,'10px '+MONO,'center');
+        hit(x,y,w,rowH,null,`<b>${armName(r.arm)}</b><br>${relRange(a,b)}: ${den} of ${ps.length} patients observed<br>Click to open them as lanes`,false,()=>drill(ids,`${armName(r.arm)}, observed ${relRange(a,b).toLowerCase()}`));continue}
+      const f=num/den,thin=den<3;
+      rect(x+.5,y+2,w-1,rowH-4,COL[DOMV[r.m.dom]],thin?.1+.25*f:.06+.8*f);
+      if(w>=24&&num)text(String(Math.round(f*100)),x+w/2,y+rowH/2+4,f>.6&&!thin?COL.panel:COL.ink,'10px '+MONO,'center');
+      hit(x,y,w,rowH,null,`<b>${measName(r.m)}</b> · ${armName(r.arm)}<br>${relRange(a,b)}: ${num} of ${den} (${Math.round(f*100)}%)${num?'<br>Click to open these patients as lanes':''}`,false,num?()=>drill(ids,`${measName(r.m)}, ${relRange(a,b).toLowerCase()}`):null)}
+  });
+}
+function drawSummaryLabels(){
+  rect(0,AX,LW,H-AX,COL.panel);line(LW-.5,AX,LW-.5,H,COL.line);
+  const rows=dtRows(),one=ST.arm!=='all';
+  rows.forEach((r,i)=>{const y=AX+i*rowH-ST.y0;if(y+rowH<AX||y>H)return;
+    if(i&&r.m!==rows[i-1].m)line(0,y+.5,LW,y+.5,COL.line,1);
+    rect(9,y+6,4,10,armC({arm:r.arm}));
+    const first=one||i===0||r.m!==rows[i-1].m,nm=r.n?'Patients observed':measName(r.m);
+    if(first)text(fitText(nm,LW-74,'11px '+BODY),17,y+15,COL.ink,'11px '+BODY);
+    text(r.arm==='P'?'Pembro':'Placebo',LW-8,y+15,COL.muted,'10px '+MONO,'right');
+    hit(0,y,LW,rowH,null,`<b>${nm}</b><br>${armName(r.arm)}${r.n?'':' · '+(r.m.den?'% of patients assessed in each window':'% of patients observed in each window')}`,true)});
+}
+// ---------- Agent: query engine, view tools, chat ----------
+const chat=$('chat');let turns=[],ctl=null,sampleFn=null,cur=null;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function md(s){let h='',ul=false;for(let l of esc(s).split('\n')){l=l.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>');
+  if(/^\s*([-*•]|\d+\.) /.test(l)){if(!ul){h+='<ul>';ul=true}h+='<li>'+l.replace(/^\s*([-*•]|\d+\.) /,'')+'</li>'}
+  else{if(ul){h+='</ul>';ul=false}if(l.trim())h+='<p>'+l.replace(/^#+\s*/,'')+'</p>'}}return h+(ul?'</ul>':'')}
+function addMsg(cls,html){const d=document.createElement('div');d.className='msg '+cls;d.innerHTML=html;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d}
+function logStep(t){if(!cur)return;const s=document.createElement('div');s.className='step';s.textContent=t;cur.querySelector('.steps').appendChild(s);chat.scrollTop=chat.scrollHeight}
+
+const lc=v=>String(v??'').toLowerCase();
+const OPS={eq:(a,b)=>lc(a)===lc(b),ne:(a,b)=>lc(a)!==lc(b),gt:(a,b)=>a!=null&&+a>+b,ge:(a,b)=>a!=null&&+a>=+b,lt:(a,b)=>a!=null&&+a<+b,le:(a,b)=>a!=null&&+a<=+b,
+  in:(a,b)=>[].concat(b).map(lc).includes(lc(a)),contains:(a,b)=>lc(a).includes(lc(b)),is_null:a=>a==null,not_null:a=>a!=null};
+function runQuery(q){
+  const name=String(q.table||'').toUpperCase(),t=TB[name];if(!t)throw new Error('Unknown table. Use one of '+Object.keys(TB).join(', '));
+  const where=Array.isArray(q.where)?q.where:[];
+  for(const w of where){if(!(w.field in t[0]))throw new Error(`No field ${w.field} in ${name}. Fields: ${Object.keys(t[0]).join(', ')}`);if(!OPS[w.op||'eq'])throw new Error('Unknown op '+w.op)}
+  const rows=t.filter(r=>where.every(w=>OPS[w.op||'eq'](r[w.field],w.value)));
+  const pts=rs=>new Set(rs.map(r=>r.USUBJID)).size,agg=q.agg||{};
+  const val=rs=>{if(!agg.fn||agg.fn==='count')return rs.length;if(agg.fn==='patients')return pts(rs);
+    const v=rs.map(r=>+r[agg.field]).filter(Number.isFinite).sort((a,b)=>a-b);if(!v.length)return null;
+    return agg.fn==='max'?v[v.length-1]:agg.fn==='min'?v[0]:agg.fn==='median'?v[Math.floor((v.length-1)/2)]:+(v.reduce((a,b)=>a+b,0)/v.length).toFixed(2)};
+  const out={table:name,n_rows:rows.length,n_patients:pts(rows)};
+  const gb=[].concat(q.group_by||[]).filter(Boolean);
+  if(gb.length){const m=new Map();rows.forEach(r=>{const k=gb.map(f=>r[f]).join(' | ');if(!m.has(k))m.set(k,[]);m.get(k).push(r)});
+    out.groups=[...m].map(([k,rs])=>({group:k,n_rows:rs.length,n_patients:pts(rs),value:val(rs)})).sort((a,b)=>(b.value??0)-(a.value??0)).slice(0,50);return out}
+  if(agg.fn)out.value=val(rows);
+  out.usubjids=[...new Set(rows.map(r=>r.USUBJID))].slice(0,80);
+  out.rows=rows.slice(0,Math.min(40,Math.max(1,+q.limit||20)));return out;
+}
+const MODE_IN={full:'PDT',patient_x_time:'PT',patient_x_domain:'PD',domain_x_time:'DT'};
+const ALIGN_IN={randomization:'rand',first_grade3_ae:'g3',first_immune_ae:'ir',first_ae_term:'term',confirmed_pr:'cpr',progression:'pd',crossover:'xo'};
+const SORT_IN={id:'id',time_to_pd:'pfs',time_on_treatment:'trt',ae_count:'ae',peak_alt:'alt',tps:'tps',best_shrinkage:'shr',anchor_day:'anc'};
+const SUB_IN={all:'all',grade3_ae:'g3',immune_ae:'ir',has_signal:'sig',crossover:'xo',progressed:'pd'};
+const keyOf=(m,v)=>Object.keys(m).find(k=>m[k]===v);
+function viewState(){return{mode:keyOf(MODE_IN,ST.mode),align:keyOf(ALIGN_IN,ST.align),ae_term:ST.align==='term'?ST.term:undefined,patients_shown:ROWS.length,
+  arm:{all:'both',P:'pembro',B:'placebo'}[ST.arm],subset:ST.show==='pick'?'selection':keyOf(SUB_IN,ST.show),sort:keyOf(SORT_IN,ST.sort)||ST.sort,layers:[...ST.layers],lab:ST.lab,selected_patient:ST.sel?.id||null}}
+function applyView(v){
+  if(v.align){const a=ALIGN_IN[v.align];if(!a)throw new Error('align must be one of '+Object.keys(ALIGN_IN).join(', '));ST.align=a}
+  if(v.ae_term){const t=AE_TERMS.find(x=>lc(x)===lc(v.ae_term));if(!t)throw new Error('Unknown AE term. Terms: '+AE_TERMS.join(', '));ST.term=t;if(!v.align)ST.align='term'}
+  if(v.arm)ST.arm={both:'all',pembro:'P',placebo:'B'}[v.arm]||ST.arm;
+  if(v.tps)ST.tps={all:'all','<1':'0','1-49':'1','>=50':'2'}[v.tps]??ST.tps;
+  if(v.subset&&SUB_IN[v.subset])ST.show=SUB_IN[v.subset];
+  if(v.sort){if(SORT_IN[v.sort])ST.sort=SORT_IN[v.sort];else{const c=FEAT.find(f=>f.k===v.sort||lc(f.name)===lc(v.sort));if(c){ensureSortOpt(c);ST.sort='f:'+c.k}}}
+  if(Array.isArray(v.layers)){const L=v.layers.map(x=>String(x).toUpperCase()).filter(k=>DOMV[k]);if(L.length)ST.layers=new Set(L)}
+  if(v.lab&&LABS[String(v.lab).toUpperCase()])ST.lab=String(v.lab).toUpperCase();
+  if(v.mode&&MODE_IN[v.mode])setMode(MODE_IN[v.mode]);
+  syncControls();refresh(true);
+  if(v.zoom)zoomPreset(v.zoom);
+  return viewState();
+}
+const TOOLS=[
+  {name:'query_data',description:'Query one table of the synthetic trial data. Filters with where (ANDed); optional group_by and agg. Returns n_rows, n_patients, and either groups or the first rows plus matching USUBJIDs. Query before stating any number.',
+    inputSchema:{type:'object',properties:{table:{type:'string',enum:Object.keys(TB)},where:{type:'array',items:{type:'object',properties:{field:{type:'string'},op:{type:'string',enum:Object.keys(OPS)},value:{}},required:['field','op']}},
+      group_by:{type:'array',items:{type:'string'}},agg:{type:'object',properties:{fn:{type:'string',enum:['count','patients','max','min','mean','median']},field:{type:'string'}}},limit:{type:'integer'}},required:['table']},
+    execute:i=>{logStep(`query ${String(i.table).toUpperCase()}${(i.where||[]).map(w=>` · ${w.field} ${w.op} ${JSON.stringify(w.value??'')}`).join('')}${i.group_by?' · by '+[].concat(i.group_by).join(', '):''}`);return runQuery(i)}},
+  {name:'set_view',description:'Change what the page shows; every field optional. mode collapses one cube dimension. align re-aligns time on an event (patients without it drop out). Returns the new view state.',
+    inputSchema:{type:'object',properties:{mode:{type:'string',enum:Object.keys(MODE_IN)},align:{type:'string',enum:Object.keys(ALIGN_IN)},ae_term:{type:'string'},arm:{type:'string',enum:['both','pembro','placebo']},
+      tps:{type:'string',enum:['all','<1','1-49','>=50']},subset:{type:'string',enum:Object.keys(SUB_IN)},sort:{type:'string',description:'one of '+Object.keys(SORT_IN).join(', ')+', or a matrix column key: '+FEAT.map(f=>f.k).join(', ')},
+      layers:{type:'array',items:{type:'string',enum:Object.keys(DOMV)}},lab:{type:'string',enum:Object.keys(LABS)},zoom:{type:'string',enum:['fit','overview','events','detail']}}},
+    execute:i=>{logStep('view · '+Object.entries(i).map(([k,v])=>k+' '+v).join(' · '));return applyView(i)}},
+  {name:'show_patients',description:'Restrict the view to these patients (USUBJIDs, e.g. from query_data). Returns how many are shown.',
+    inputSchema:{type:'object',properties:{usubjids:{type:'array',items:{type:'string'}},label:{type:'string'}},required:['usubjids']},
+    execute:i=>{const ids=[].concat(i.usubjids||[]).map(String);logStep(`show ${ids.length} patients`);drill(ids,i.label||'Agent selection',true);return{shown:ROWS.length,view:viewState()}}},
+  {name:'open_patient',description:'Open one patient: select it, switch to the full cube lanes and zoom to it.',
+    inputSchema:{type:'object',properties:{usubjid:{type:'string'}},required:['usubjid']},
+    execute:i=>{const p=PTS.find(x=>x.id===String(i.usubjid));if(!p)throw new Error('No such USUBJID');logStep('open '+p.id);openPatient(p);return{opened:p.id}}}
+];
+function rules(){const n=a=>PTS.filter(p=>p.arm===a).length;return `You are the agent inside "KN189 Event Cube", a page showing SYNTHETIC KEYNOTE-189-style trial data: ${PTS.length} patients randomized 2:1 to pembrolizumab or placebo, each + pemetrexed + platinum (4 cycles, then maintenance). Placebo patients may cross over to pembrolizumab after progression. Study day 1 = randomization.
+Tables for query_data (one row per record):
+DM: USUBJID, ARM, AGE, SEX, TPS (PD-L1 %), TPSGRP, ECOG, PLATINUM, BOR (CR/PR/SD/PD/NE), BESTPCHG, PDDY, DTHDY, XODY (crossover day), LASTDY, NAE, LASTDOSEDY
+AE: USUBJID, ARM, AETERM, AESOC, AETOXGR (1-5), AEIR (Y = immune-related), AESER, AESTDY, AEENDY
+LB: USUBJID, ARM, LBTESTCD (ALT, AST, BILI, CREAT, TSH, ANC), LBSTRESN, XULN (value / upper limit of normal), LBNRIND (HIGH/LOW/NORMAL), LBDY
+EX: USUBJID, ARM, EXTRT, EXDOSE, CYCLE, EXSTDY, CROSSOVER (Y/N)
+TR: USUBJID, ARM, TRDY, SLD (mm), PCHG (% vs baseline), RSORRES (BL/CR/PR/SD/PD)
+CM: USUBJID, ARM, CMTRT, CMINDC, CMSTDY, CMENDY
+SIG: USUBJID, ARM, SIGNAL, DETAIL, SEVERITY (crit/warn/info), DAY  (auto-detected data issues)
+ARM values: "Pembrolizumab + chemo" (${n('P')} patients), "Placebo + chemo" (${n('B')}). AE terms: ${AE_TERMS.join(', ')}.
+The view is a patient × domain × time cube. Modes: full (each patient's domains peeled into lanes), patient_x_time (domains merged into one line per patient), patient_x_domain (time collapsed: matrix of per-patient summaries), domain_x_time (patients collapsed: % of patients per time window, by arm). Time can be aligned on: ${Object.keys(ALIGN_IN).join(', ')}; first_ae_term needs ae_term.
+Current view: ${JSON.stringify(viewState())}
+How to work: query before giving any number and give denominators. When the user asks to see, show, align, collapse, compress, sort, filter or open something, call set_view, show_patients or open_patient, then say in one line what is now on screen. Keep answers short: 2 to 5 sentences or a short list. Answer in the language the user writes in. Never invent data.`}
+function busy(b){$('send').disabled=b;$('stop').hidden=!b}
+async function ask(q){
+  q=q.trim();if(!q)return;addMsg('u',esc(q));$('ask').value='';
+  cur=addMsg('a','<div class="who">Agent</div><div class="steps"></div><div class="body"><p>Thinking…</p></div>');const body=cur.querySelector('.body');
+  if(!sampleFn){body.innerHTML=md(localCommand(q));return}
+  turns.push({role:'user',content:q});if(turns.length>12)turns=turns.slice(-12);
+  ctl=new AbortController();busy(true);
+  try{const {text}=await sampleFn([{role:'user',content:rules()},...turns],{tools:TOOLS,signal:ctl.signal,modelTier:$('tier').value,onText:({text})=>{body.innerHTML=md(text);chat.scrollTop=chat.scrollHeight}});
+    body.innerHTML=md(text);turns.push({role:'assistant',content:text})}
+  catch(e){const code=e&&e.code;
+    if(code==='cancelled')body.innerHTML=e.text?md(e.text):'<p>Stopped.</p>';
+    else if(['not_granted','sampling_disabled','not_declared','capability_disabled','capability_removed','tools_unavailable'].includes(code)){sampleFn=null;
+      $('agentNote').textContent='Claude is off for this page, so the agent understands simple view commands only.';body.innerHTML=md(localCommand(q))}
+    else if(code==='rate_limited')body.innerHTML='<p>Too many requests right now. Try again in a minute.</p>';
+    else if(code==='refused')body.innerHTML='<p>Claude declined that request. Try rephrasing it.</p>';
+    else body.innerHTML=(e&&e.text?md(e.text):'')+`<p class="msg err">The agent stopped before finishing (${esc(code||'error')}). Ask again to retry.</p>`}
+  finally{busy(false);cur=null}
+}
+function localCommand(q){
+  const s=q.toLowerCase(),v={},C='(collapse|compress|压缩|折叠|合并)';
+  if(new RegExp(C+'.*(time|时间)').test(s)||/patient\s*[x×]\s*domain/.test(s))v.mode='patient_x_domain';
+  else if(new RegExp(C+'.*(patient|病人|患者)').test(s)||/domain\s*[x×]\s*time|summary/.test(s))v.mode='domain_x_time';
+  else if(new RegExp(C+'.*(domain)').test(s)||/patient\s*[x×]\s*time|profile/.test(s))v.mode='patient_x_time';
+  else if(/full cube|全部展开|还原|peel|剥离/.test(s))v.mode='full';
+  if(/align|对齐|anchor/.test(s)){
+    const t=AE_TERMS.find(x=>s.includes(x.toLowerCase()));
+    if(t){v.align='first_ae_term';v.ae_term=t}
+    else if(/random|随机/.test(s))v.align='randomization';
+    else if(/confirm|\bpr\b|partial|缓解/.test(s))v.align='confirmed_pr';
+    else if(/immune|irae|免疫/.test(s))v.align='first_immune_ae';
+    else if(/grade\s*(≥|>=)?\s*3|3级|≥3/.test(s))v.align='first_grade3_ae';
+    else if(/progress|\bpd\b|进展/.test(s))v.align='progression';
+    else if(/crossover|交叉/.test(s))v.align='crossover'}
+  if(/placebo|安慰剂/.test(s))v.arm='placebo';else if(/both arms|两组|all arms/.test(s))v.arm='both';else if(/pembro/.test(s)&&/only|只/.test(s))v.arm='pembro';
+  if(/sort|排序/.test(s)){const m=[[/alt/,'peak_alt'],[/shrink|缩小|best|%/,'best_shrinkage'],[/tps|pd-?l1/,'tps'],[/pfs|progress|进展/,'time_to_pd'],[/treatment|治疗/,'time_on_treatment'],[/anchor/,'anchor_day'],[/\bae|不良/,'ae_count']].find(([r])=>r.test(s));if(m)v.sort=m[1]}
+  if(/only|只看|筛选|filter/.test(s)){if(/signal|信号/.test(s))v.subset='has_signal';else if(/grade\s*3|3级/.test(s))v.subset='grade3_ae';else if(/immune|irae|免疫/.test(s)&&!v.align)v.subset='immune_ae'}
+  if(!Object.keys(v).length)return 'Claude is not available here, so I can only change the view. Try "collapse time", "align on confirmed PR", "sort by peak ALT" or "only placebo".';
+  try{const st=applyView(v);return `Done. Now showing **${st.patients_shown} patients**: ${Object.entries(v).map(([k,x])=>k.replace('_',' ')+' '+String(x).replace(/_/g,' ')).join(', ')}.`}catch(e){return e.message}
+}
+$('askF').addEventListener('submit',e=>{e.preventDefault();ask($('ask').value)});
+$('ask').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask($('ask').value)}});
+$('stop').onclick=()=>ctl&&ctl.abort();
+const SUGS=['Align on first immune-related AE, then collapse patients','Which patients had grade ≥3 pneumonitis, and did they get steroids?','Compare grade ≥3 AE rates by arm','对齐 confirmed PR，压缩时间维度，按 best % change 排序'];
+$('sugs').innerHTML=SUGS.map((s,i)=>`<button type="button" class="sug" data-i="${i}">${esc(s)}</button>`).join('');
+$('sugs').addEventListener('click',e=>{const b=e.target.closest('.sug');if(b)ask(SUGS[+b.dataset.i])});
+addMsg('a',`<div class="who">Agent</div><p>I can query the synthetic tables (demographics, AEs, labs, dosing, tumor scans, con meds, signals) and drive this view: collapse a dimension, re-align time, filter, sort and open patients.</p>`);
+(async()=>{try{sampleFn=window.claude&&window.claude.use?await window.claude.use('sample'):null}catch(e){sampleFn=null}
+  if(!sampleFn)$('agentNote').textContent='Claude is not available in this view, so the agent understands simple view commands only (collapse, align, sort, arm, only).'})();
+// ---------- App: interaction, controls, panels, boot ----------
+function hitAt(px,py){for(let k=hits.length-1;k>=0;k--){const h=hits[k];if((px<LW)!==!!h.lab)continue;
+  if(px>=h.x-1&&px<=h.x+h.w+1&&py>=h.y-1&&py<=h.y+h.h+1)return h}return null}
+function showTip(h,px,py){const t=$('tip');if(!h){t.hidden=true;return}t.innerHTML=h.html;t.hidden=false;
+  const vp=$('vp'),r=t.getBoundingClientRect();let x=px+14,y=py+14;
+  if(x+r.width>vp.clientWidth-6)x=px-r.width-14;if(y+r.height>vp.clientHeight-6)y=py-r.height-14;
+  t.style.left=Math.max(4,x)+'px';t.style.top=Math.max(4,y)+'px'}
+function zoomAt(px,f,smooth){if(ST.mode==='PD')return;const day=dayAt(px),ppd=Math.min(40,Math.max(fitPPD()*.85,ST.ppd*f)),to={ppd,x0:day-(px-LW)/ppd};
+  if(smooth)anim(to);else{ST.ppd=to.ppd;ST.x0=to.x0;draw()}}
+function anim(to){const fr={ppd:ST.ppd,x0:ST.x0},frRow=(ST.y0+(H-AX)/4)/rowH,t0=performance.now(),red=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const step=now=>{const k=red?1:Math.min(1,(now-t0)/300),e=1-Math.pow(1-k,3);
+    ST.ppd=Math.exp(Math.log(fr.ppd)+(Math.log(to.ppd)-Math.log(fr.ppd))*e);ST.x0=fr.x0+(to.x0-fr.x0)*e;
+    if(to.row!=null&&to.row>=0)ST.yRow=frRow+(to.row-frRow)*e;draw();if(k<1)requestAnimationFrame(step);else ST.yRow=null};
+  requestAnimationFrame(step)}
+function zoomPreset(z){const c=dayAt(LW+(W-LW)/2),ppd={fit:fitPPD(),overview:.7,events:1.6,detail:4}[z]||ST.ppd;
+  anim(z==='fit'?{ppd,x0:relMin()-6}:{ppd,x0:c-(W-LW)/2/ppd})}
+
+const ptrs=new Map();let drag=null,pinch=null,moved=false;
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.offsetX,y:e.offsetY});moved=false;ST.yRow=null;
+  if(ptrs.size===1){drag={x:e.offsetX,y:e.offsetY,x0:ST.x0,y0:ST.y0,mx:ST.mx};cv.classList.add('drag')}
+  else if(ptrs.size===2){const[a,b]=[...ptrs.values()],cx=(a.x+b.x)/2;pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,ppd:ST.ppd,cx,day:dayAt(cx)};drag=null}});
+cv.addEventListener('pointermove',e=>{
+  if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.offsetX,y:e.offsetY});
+  if(pinch&&ptrs.size===2){if(ST.mode==='PD')return;const[a,b]=[...ptrs.values()];ST.ppd=Math.min(40,Math.max(fitPPD()*.85,pinch.ppd*Math.hypot(a.x-b.x,a.y-b.y)/pinch.d));
+    ST.x0=pinch.day-(pinch.cx-LW)/ST.ppd;moved=true;$('tip').hidden=true;draw();return}
+  if(drag){const dx=e.offsetX-drag.x,dy=e.offsetY-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)moved=true;
+    if(moved){if(ST.mode==='PD')ST.mx=drag.mx-dx;else ST.x0=drag.x0-dx/ST.ppd;ST.y0=drag.y0-dy;$('tip').hidden=true;draw()}return}
+  showTip(hitAt(e.offsetX,e.offsetY),e.offsetX,e.offsetY)});
+const up2=e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;cv.classList.remove('drag');
+  if(drag&&!moved&&e.type==='pointerup'){const h=hitAt(e.offsetX,e.offsetY);
+    if(h&&h.act)h.act();else{const p=h&&h.p?h.p:(ST.mode==='PDT'||ST.mode==='PT')&&e.offsetY>AX?ROWS[Math.floor((e.offsetY-AX+ST.y0)/rowH)]:null;if(p)select(p)}}
+  drag=null};
+cv.addEventListener('pointerup',up2);cv.addEventListener('pointercancel',up2);
+cv.addEventListener('pointerleave',()=>{$('tip').hidden=true});
+cv.addEventListener('wheel',e=>{e.preventDefault();ST.yRow=null;$('tip').hidden=true;const m=e.deltaMode===1?16:1;
+  if(e.ctrlKey||e.metaKey)zoomAt(e.offsetX,Math.exp(-e.deltaY*m*.01));
+  else if(e.shiftKey||Math.abs(e.deltaX)>Math.abs(e.deltaY)){const d=(e.deltaX||e.deltaY)*m;if(ST.mode==='PD')ST.mx+=d;else ST.x0+=d/ST.ppd;draw()}
+  else{ST.y0+=e.deltaY*m;draw()}},{passive:false});
+cv.addEventListener('dblclick',e=>zoomAt(e.offsetX,2.2,true));
+cv.tabIndex=0;
+cv.addEventListener('keydown',e=>{const c=LW+(W-LW)/2;
+  if(e.key==='+'||e.key==='=')zoomAt(c,1.6,true);else if(e.key==='-')zoomAt(c,1/1.6,true);
+  else if(e.key==='ArrowRight'){if(ST.mode==='PD')ST.mx+=60;else ST.x0+=60/ST.ppd;draw()}else if(e.key==='ArrowLeft'){if(ST.mode==='PD')ST.mx-=60;else ST.x0-=60/ST.ppd;draw()}
+  else if(e.key==='ArrowDown'){ST.y0+=rowH;draw()}else if(e.key==='ArrowUp'){ST.y0-=rowH;draw()}else return;e.preventDefault()});
+$('zIn').onclick=()=>zoomAt(LW+(W-LW)/2,1.8,true);
+$('zOut').onclick=()=>zoomAt(LW+(W-LW)/2,1/1.8,true);
+$('zFit').onclick=()=>{ST.mx=0;if(ST.mode==='PD')draw();else anim({ppd:fitPPD(),x0:relMin()-6})};
+
+// ---- panels ----
+function showTab(id){document.querySelectorAll('.tabs button').forEach(b=>{const on=b.dataset.t===id;b.classList.toggle('on',on);b.setAttribute('aria-selected',on)});
+  ['pAgent','pcard','pSig'].forEach(p=>$(p).hidden=p!==id)}
+document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-t]');if(b)showTab(b.dataset.t)});
+function select(p){ST.sel=p;if(ST.focus&&ST.focus.p!==p)ST.focus=null;renderCard();markSig();draw()}
+function renderCard(){const p=ST.sel,el=$('pcard');document.querySelector('[data-t="pcard"]').textContent=p?'Patient '+p.id.slice(-4):'Patient';
+  if(!p){el.innerHTML='<h2>Patient</h2><p class="empty">Click a lane or a matrix row to open one patient.</p>';return}
+  const ev=[];p.ae.filter(a=>a.g>=3).forEach(a=>ev.push([a.s,`${a.term}, grade ${a.g}${a.ir?', immune-related':''}`,gc(a.g)]));
+  if(p.ds.pd)ev.push([p.ds.pd,'Progressive disease',COL.crit]);if(p.ds.xo)ev.push([p.ds.xo,'Crossover to pembrolizumab',COL.accent]);
+  if(p.ds.death)ev.push([p.ds.death,'Death',COL.ink]);p.sig.forEach(s=>ev.push([s.day,s.title,sevC(s.sev)]));ev.sort((a,b)=>a[0]-b[0]);
+  const i=ROWS.indexOf(p),an=anchorDay(p,ST.align,ST.term);
+  el.innerHTML=`<h2>Patient <span>${i<0?'outside this view':(i+1)+' of '+ROWS.length}</span></h2>
+  <p class="pid">${p.id}<span class="arm" style="background:${armC(p)}">${p.arm==='P'?'Pembro + chemo':'Placebo + chemo'}</span></p>
+  <dl class="kv"><dt>Age / sex</dt><dd>${p.age} / ${p.sex}</dd><dt>PD-L1 TPS</dt><dd>${p.tps}%</dd><dt>ECOG status</dt><dd>${p.ecog}</dd><dt>Platinum</dt><dd>${p.plat}</dd>
+  <dt>Best response</dt><dd>${RESP[p.bor]} (${p.best}%)</dd><dt>Progression</dt><dd>${p.ds.pd?'Day '+p.ds.pd:'None through day '+(p.ds.death??p.fu)}</dd>
+  <dt>Status</dt><dd>${p.ds.death?'Died day '+p.ds.death:'Alive at day '+p.fu}</dd>
+  <dt>Adverse events</dt><dd>${p.nAE} total · ${p.ae.filter(a=>a.g>=3).length} grade ≥3 · ${p.ae.filter(a=>a.ir).length} immune</dd>
+  ${ST.align!=='rand'?`<dt>Anchor</dt><dd>${an==null?'none for this anchor':'Day '+an}</dd>`:''}</dl>
+  <ul class="evlist">${ev.map(e=>`<li><span class="day">D${e[0]}</span><span style="color:${e[2]}">●</span><span>${e[1]}</span></li>`).join('')||'<li>No grade ≥3 events or signals.</li>'}</ul>
+  <button class="btn" id="zPat" type="button">Open as lanes and zoom in</button>`;
+  $('zPat').onclick=()=>openPatient(p)}
+function openPatient(p){if(!ROWS.includes(p)){ST.align='rand';ST.show='all';ST.arm='all';ST.tps='all';syncControls();refresh(true)}
+  if(ST.mode!=='PDT'){setMode('PDT');syncControls()}ST.sel=p;renderCard();markSig();
+  const ppd=Math.max(3.1,(W-LW-30)/(p.ds.last-p.off+40));anim({ppd,x0:-20-p.off,row:ROWS.indexOf(p)})}
+const SEVR={crit:0,warn:1,info:2};
+function renderSignals(){const vis=new Set(ROWS);SIGV=ALLSIG.filter(s=>vis.has(s.p)).sort((a,b)=>SEVR[a.sev]-SEVR[b.sev]||a.p.i-b.p.i);
+  const nc=SIGV.filter(s=>s.sev!=='info').length;$('sigN').textContent=nc?String(nc):'';
+  $('sigList').innerHTML=SIGV.map((s,k)=>`<li data-k="${k}" tabindex="0"><span class="sv" style="background:${sevC(s.sev)}"></span><div><div class="t">${s.title}</div><div class="d">${s.detail}</div><div class="id">${s.p.id} · day ${s.day}</div></div></li>`).join('')||'<li><span></span><div class="d">No signals in this view.</div></li>';
+  markSig()}
+function markSig(){[...$('sigList').children].forEach(li=>{const s=SIGV[+li.dataset.k];li.classList.toggle('on',!!s&&s.p===ST.sel)})}
+function focusSignal(s){if(ST.mode!=='PDT'&&ST.mode!=='PT'){setMode('PDT');syncControls()}if(!ROWS.includes(s.p)){ST.align='rand';syncControls();refresh(true)}
+  ST.focus=s;ST.sel=s.p;renderCard();markSig();const ppd=Math.max(ST.ppd,3.4);anim({ppd,x0:s.day-s.p.off-(W-LW)/2/ppd,row:ROWS.indexOf(s.p)})}
+$('sigList').addEventListener('click',e=>{const li=e.target.closest('li[data-k]');if(li)focusSignal(SIGV[+li.dataset.k])});
+$('sigList').addEventListener('keydown',e=>{if(e.key==='Enter'){const li=e.target.closest('li[data-k]');if(li)focusSignal(SIGV[+li.dataset.k])}});
+function renderLegend(){const sw=(st,t)=>`<span><i style="${st}"></i>${t}</span>`,dom=DOM.map(d=>sw(`width:10px;height:10px;border-radius:2px;background:var(${d.v})`,d.name)).join('');
+  const abbr='<span>TPS = PD-L1 tumor proportion score · ULN / LLN = upper / lower limit of normal</span>';
+  const L={PD:[dom,'<span>Bar = size within the column · <b style="color:var(--crit)">red value</b> = worth a look (ALT ≥3×ULN, creatinine ≥1.5×, TSH ≥2×, ANC below LLN, grade ≥3, gap over 6 weeks) · click a header to sort</span>',abbr],
+    DT:[dom,'<span>Cell = % of patients in that arm and time window · darker = higher · faint = fewer than 3 assessed · click a cell to open those patients as lanes</span>',abbr],
+    LN:[sw('width:16px;height:6px;background:var(--accent);opacity:.6','Pembro + chemo on treatment'),sw('width:16px;height:6px;background:var(--pbo);opacity:.6','Placebo + chemo'),
+      sw('width:2px;height:12px;background:var(--c-ex)','Dose'),`<span>AE grade ${[1,2,3,4,5].map(g=>`<i style="width:11px;height:8px;background:var(--g${g})"></i>`).join('')}</span>`,
+      sw('width:14px;height:7px;border:1px solid var(--ink)','Outlined AE = immune-related'),sw('width:8px;height:8px;border-radius:50%;background:var(--c-lb)','Lab outside normal'),
+      sw('width:8px;height:8px;border-radius:50%;background:var(--c-tr)','Tumor scan'),'<span><b style="color:var(--crit)">◆</b> progression · ✕ death · | alive at cut · <b style="color:var(--accent)">▶</b> crossover</span>',abbr]};
+  $('legend').innerHTML=(L[ST.mode]||L.LN).join('')}
+
+// ---- cube + controls ----
+function iso(w,h,d){const o=4,b=28,dx=d*.7,dy=d*.45;
+  return `<svg viewBox="0 0 32 32" aria-hidden="true"><polygon points="${o},${b} ${o+w},${b} ${o+w},${b-h} ${o},${b-h}" fill="currentColor" opacity=".35"/><polygon points="${o},${b-h} ${o+w},${b-h} ${o+w+dx},${b-h-dy} ${o+dx},${b-h-dy}" fill="currentColor" opacity=".6"/><polygon points="${o+w},${b} ${o+w+dx},${b-dy} ${o+w+dx},${b-h-dy} ${o+w},${b-h}" fill="currentColor" opacity=".85"/></svg>`}
+const MODES=[['PDT','Patient × Domain × Time','Full cube: lanes peeled by domain',iso(16,14,12)],['PT','Patient × Time','Domains merged: profile lanes',iso(16,2.5,12)],
+  ['PD','Patient × Domain','Time collapsed: matrix',iso(2.5,14,12)],['DT','Domain × Time','Patients collapsed: % by arm',iso(16,14,1.5)]];
+$('cube').innerHTML=MODES.map(([k,t,s,svg])=>`<button type="button" class="cb" role="radio" data-m="${k}">${svg}<span><b>${t}</b><small>${s}</small></span></button>`).join('');
+$('cube').addEventListener('click',e=>{const b=e.target.closest('.cb');if(!b)return;setMode(b.dataset.m);syncControls();refresh(false)});
+const HINT={PDT:'Pinch or Ctrl + scroll to zoom time · scroll through patients · drag to pan · hover for detail · double-click to zoom in',PT:'Every domain on one line per patient. Pinch or Ctrl + scroll to zoom; more detail appears as you zoom in.',
+  PD:'Time is collapsed: one summary per patient and measure. Drag sideways if the columns run off screen; click a header to sort.',DT:'Patients are collapsed: each cell is a share of one arm in one time window. Zoom in for weekly windows; click a cell to drill back into lanes.'};
+function setMode(m){ST.mode=m;ST.peel=m==='PDT';$('zoombar').hidden=m==='PD';$('hint').textContent=HINT[m];$('tip').hidden=true;renderLegend()}
+function ensureSortOpt(c){const v='f:'+c.k;if(![...$('fSort').options].some(o=>o.value===v))$('fSort').add(new Option('Column: '+c.name,v))}
+function sortBy(v){const c=FEAT.find(f=>'f:'+f.k===v);if(c)ensureSortOpt(c);ST.sort=v;syncControls();refresh(false)}
+function drill(ids,label,keepMode){ST.pick=new Set(ids);ST.show='pick';const o=$('fShow').querySelector('option[value="pick"]');o.hidden=false;o.textContent='Selection: '+(label.length>44?label.slice(0,43)+'…':label);
+  if(!keepMode)setMode('PDT');syncControls();refresh(true)}
+function syncControls(){
+  document.querySelectorAll('.cb').forEach(b=>{const on=b.dataset.m===ST.mode;b.classList.toggle('on',on);b.setAttribute('aria-checked',on)});
+  $('fAlign').value=ST.align;$('termBox').hidden=ST.align!=='term';$('fTerm').value=ST.term;
+  $('fArm').value=ST.arm;$('fTps').value=ST.tps;$('fShow').value=ST.show;$('fSort').value=ST.sort;$('fLab').value=ST.lab;
+  document.querySelectorAll('#layerChips .chip').forEach(b=>{const on=ST.layers.has(b.dataset.k);b.classList.toggle('on',on);b.setAttribute('aria-pressed',on)})}
+function refresh(fit){ROWS=filterRows();renderSignals();renderCard();
+  const n=ROWS.length,a=ST.align==='rand'?'':` with ${ALIGN_NAME[ST.align].toLowerCase()}${ST.align==='term'?' ('+ST.term+')':''}`;
+  $('anchorInfo').textContent=`${n} of ${PTS.length} patients${a}`;
+  if(fit){ST.ppd=fitPPD();ST.x0=relMin()-6;ST.y0=0;ST.mx=0}draw()}
+$('fTerm').innerHTML=AE_TERMS.map(t=>`<option>${t}</option>`).join('');
+$('layerChips').innerHTML=DOM.map(d=>`<button type="button" class="chip on" data-k="${d.k}" style="--dc:var(${d.v})" aria-pressed="true"><i></i>${d.k} <span style="font-family:var(--f-body);font-weight:500">${d.name}</span></button>`).join('');
+$('layerChips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;const k=b.dataset.k;
+  if(ST.layers.has(k)){if(ST.layers.size===1)return;ST.layers.delete(k)}else ST.layers.add(k);syncControls();draw()});
+$('fAlign').addEventListener('change',e=>{ST.align=e.target.value;syncControls();refresh(true)});
+$('fTerm').addEventListener('change',e=>{ST.term=e.target.value;refresh(true)});
+[['fArm','arm'],['fTps','tps'],['fShow','show'],['fSort','sort'],['fLab','lab']].forEach(([id,k])=>$(id).addEventListener('change',e=>{ST[k]=e.target.value;refresh(k==='arm'||k==='tps'||k==='show')}));
+
+// ---- boot ----
+function onTheme(){readColors();renderCard();renderSignals();draw()}
+readColors();resize();setMode('PDT');syncControls();
+ST.sel=(ALLSIG.find(s=>s.sev==='crit')||ALLSIG[0]||{p:PTS[0]}).p;
+refresh(true);renderLegend();
+if(document.fonts)document.fonts.ready.then(()=>draw());
+new ResizeObserver(()=>{const fit=ST.ppd<=fitPPD()*1.01;resize();if(fit)ST.ppd=fitPPD();draw()}).observe($('vp'));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',onTheme);
+new MutationObserver(onTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+</script>
+
+</body></html>
